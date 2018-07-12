@@ -124,8 +124,17 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
     if (getView() != null) {
       // Find views
       playerView = getView().findViewById(R.id.player_view);
+      if (playerView == null) {
+        throw new IllegalStateException("Your view must contain a PlayerView with an id of R.id.player_view");
+      }
       debugRootView = getView().findViewById(R.id.controls_root);
+      if (debugRootView == null) {
+        throw new IllegalStateException("Your view must contain a LinearLayout with an id of R.id.controls_root");
+      }
       debugTextView = getView().findViewById(R.id.debug_text_view);
+      if (debugTextView == null) {
+        throw new IllegalStateException("Your view must contain a TextView with an id of R.id.debug_text_view");
+      }
       setDebugTextVisibility(View.GONE);
       setDebugRootVisibility(View.GONE);
 
