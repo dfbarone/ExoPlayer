@@ -15,6 +15,7 @@ import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.ErrorMessageProvider;
 
 /**
  * Created by dfbarone on 5/17/2018.
@@ -44,7 +45,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     this.itemView = itemView;
   }
 
-  // Common player methods
+  /** Common player methods*/
   protected abstract <T extends Player> T getPlayer();
 
   protected abstract void initializePlayer();
@@ -57,7 +58,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     }
   }
 
-  // Getters/Setters
+  /** Getters/Setters*/
   public Context getContext() {
     return mContext;
   }
@@ -112,22 +113,17 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
    */
   public interface EventListener {
 
-    /**
-     * Initialization errors for output
-     *
+    /** Initialization errors for output
      * @param message non player related error
      * @param e       ExoPlayerException, if valid will be a player related error
      */
     void onError(String message, Exception e);
 
-    /**
-     * Programmatic attempt to close player
-     *
+    /** Programmatic attempt to close player
      * @param reason empty or null reason means user initiated close
      */
     void onFinish(String reason);
   }
-
 
   /** MediaSource builder methods*/
   public interface MediaSourceBuilder {
@@ -135,7 +131,6 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
     MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension);
   }
-
 
   /** DataSource.Factory builder methods*/
   public interface DataSourceBuilder {
@@ -167,6 +162,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     private DrmSessionManagerBuilder drmSessionManagerBuilder;
     private AdsMediaSourceBuilder adsMediaSourceBuilder;
     private LoadControl loadControl;
+    private ErrorMessageProvider errorMessageProvider;
 
     /*** Required dependency*/
     public DataSourceBuilder dataSourceBuilder() {
@@ -178,22 +174,23 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
       return mediaSourceBuilder;
     }
 
-    /**
-     * Optional dependency
-     */
+    /*** Optional dependency*/
     public DrmSessionManagerBuilder drmSessionManagerBuilder() {
       return drmSessionManagerBuilder;
     }
 
-    /**
-     * Optional dependency
-     */
+    /*** Optional dependency*/
     public AdsMediaSourceBuilder adsMediaSourceBuilder() {
       return adsMediaSourceBuilder;
     }
 
+    /** Optional dependency*/
     public LoadControl loadControl() {
       return loadControl;
+    }
+
+    public ErrorMessageProvider getErrorMessageProvider() {
+      return errorMessageProvider;
     }
 
     public static class Builder {
@@ -202,6 +199,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
       private DrmSessionManagerBuilder drmSessionManagerBuilder;
       private AdsMediaSourceBuilder adsMediaSourceBuilder;
       private LoadControl loadControl;
+      private ErrorMessageProvider errorMessageProvider;
 
       public Builder(DataSourceBuilder dataSourceBuilder, MediaSourceBuilder mediaSourceBuilder) {
         setDataSourceBuilder(dataSourceBuilder);
@@ -239,6 +237,11 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
         return this;
       }
 
+      public Builder setErrorMessageProvider(ErrorMessageProvider errorMessageProvider) {
+        this.errorMessageProvider = errorMessageProvider;
+        return this;
+      }
+
       public InitializePlayer build() {
         InitializePlayer dep = new InitializePlayer();
         dep.dataSourceBuilder = this.dataSourceBuilder;
@@ -246,6 +249,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
         dep.drmSessionManagerBuilder = this.drmSessionManagerBuilder;
         dep.adsMediaSourceBuilder = this.adsMediaSourceBuilder;
         dep.loadControl = this.loadControl;
+        dep.errorMessageProvider = this.errorMessageProvider;
         return dep;
       }
     }

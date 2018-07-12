@@ -18,8 +18,6 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.util.Util;
 
 import java.net.UnknownHostException;
-import java.util.Formatter;
-import java.util.Locale;
 
 public class PlayerUtils {
 

@@ -32,7 +32,6 @@ import android.widget.TextView;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
-import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.SimpleExoPlayer;
@@ -42,16 +41,16 @@ import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.android.exoplayer2.manager.util.ContextHelper;
 import com.google.android.exoplayer2.manager.util.PlayerUtils;
 import com.google.android.exoplayer2.managerdemo.R;
-import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
-import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
 import com.google.android.exoplayer2.trackselection.RandomTrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.DebugTextViewHelper;
 import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.ui.TrackSelectionView;
@@ -61,7 +60,6 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
-import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
 import com.google.android.exoplayer2.util.Util;
 
@@ -133,7 +131,9 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
 
       // Initialize player view
       playerView.setControllerVisibilityListener(this);
-      playerView.setErrorMessageProvider(new DefaultPlayerErrorMessageProvider(getContext()));
+      if (dependencies().getErrorMessageProvider() != null) {
+        playerView.setErrorMessageProvider(dependencies().getErrorMessageProvider());
+      }
       playerView.requestFocus();
 
       // Set root on click listener
@@ -400,47 +400,23 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
     PlayerUtils.setDebugVisibility(debugTextView, debug(), visibility);
   }
 
-  private static class DefaultPlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
-
-    private Context mContext;
-
-    public DefaultPlayerErrorMessageProvider(Context context) {
-      mContext = context;
-    }
-
-    private Context getContext() {
-      return mContext;
-    }
-
-    @Override
-    public Pair<Integer, String> getErrorMessage(ExoPlaybackException e) {
-      String errorString = "";
-      if (e.type == ExoPlaybackException.TYPE_RENDERER) {
-        Exception cause = e.getRendererException();
-        if (cause instanceof MediaCodecRenderer.DecoderInitializationException) {
-          // Special case for decoder initialization failures.
-          MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
-              (MediaCodecRenderer.DecoderInitializationException) cause;
-          if (decoderInitializationException.decoderName == null) {
-            if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
-              errorString = getContext().getString(R.string.error_querying_decoders);
-            } else if (decoderInitializationException.secureDecoderRequired) {
-              errorString =
-                  getContext().getString(
-                      R.string.error_no_secure_decoder, decoderInitializationException.mimeType);
-            } else {
-              errorString =
-                  getContext().getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
-            }
-          } else {
-            errorString =
-                getContext().getString(
-                    R.string.error_instantiating_decoder,
-                    decoderInitializationException.decoderName);
-          }
+  @Override
+  @SuppressWarnings("ReferenceEquality")
+  public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+    updateButtonVisibilities();
+    if (trackGroups != lastSeenTrackGroupArray) {
+      MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+      if (mappedTrackInfo != null) {
+        if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_VIDEO)
+            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
+          onError(getContext().getString(R.string.error_unsupported_video));
+        }
+        if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_AUDIO)
+            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
+          onError(getContext().getString(R.string.error_unsupported_audio));
         }
       }
-      return Pair.create(0, errorString);
+      lastSeenTrackGroupArray = trackGroups;
     }
   }
 

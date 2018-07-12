@@ -6,11 +6,13 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.google.android.exoplayer2.C;
+import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
@@ -18,12 +20,15 @@ import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.android.exoplayer2.manager.util.ContextHelper;
 import com.google.android.exoplayer2.manager.SimpleExoPlayerManager;
+import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
+import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.source.ads.AdsMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.Util;
 
 import java.lang.reflect.Constructor;
@@ -42,12 +47,16 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
     super(context, root);
 
     /* Customizations in intializePlayer */
-    InitializePlayer.Builder dependencyBuilder = new InitializePlayer.Builder(
-        new DemoDataSourceBuilder(), new DefaultMediaSourceBuilder())
-        .setDrmSessionManagerBuilder(new DemoDrmSessionManagerBuilder())
-        .setAdsMediaSourceBuilder(new DemoAdsMediaSourceBuilder());
-
-    setDependencies(dependencyBuilder.build());
+    setDependencies(
+        new InitializePlayer.Builder(
+            new DemoDataSourceBuilder(),
+            new DefaultMediaSourceBuilder()
+        )
+            .setDrmSessionManagerBuilder(new DemoDrmSessionManagerBuilder())
+            .setAdsMediaSourceBuilder(new DemoAdsMediaSourceBuilder())
+            .setErrorMessageProvider(new PlayerErrorMessageProvider())
+            .build()
+    );
   }
 
   // Activity lifecycle
@@ -178,6 +187,40 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
           playerView.getOverlayFrameLayout().removeAllViews();
         }
       }
+    }
+  }
+
+  private class PlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
+
+    @Override
+    public Pair<Integer, String> getErrorMessage(ExoPlaybackException e) {
+      String errorString = getContext().getString(R.string.error_generic);
+      if (e.type == ExoPlaybackException.TYPE_RENDERER) {
+        Exception cause = e.getRendererException();
+        if (cause instanceof MediaCodecRenderer.DecoderInitializationException) {
+          // Special case for decoder initialization failures.
+          MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
+              (MediaCodecRenderer.DecoderInitializationException) cause;
+          if (decoderInitializationException.decoderName == null) {
+            if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
+              errorString = getContext().getString(R.string.error_querying_decoders);
+            } else if (decoderInitializationException.secureDecoderRequired) {
+              errorString =
+                  getContext().getString(
+                      R.string.error_no_secure_decoder, decoderInitializationException.mimeType);
+            } else {
+              errorString =
+                  getContext().getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
+            }
+          } else {
+            errorString =
+                getContext().getString(
+                    R.string.error_instantiating_decoder,
+                    decoderInitializationException.decoderName);
+          }
+        }
+      }
+      return Pair.create(0, errorString);
     }
   }
 

@@ -148,24 +148,4 @@ public abstract class ExoPlayerManager extends PlayerManager
     onError("onPlayerError", e);
   }
 
-  @Override
-  @SuppressWarnings("ReferenceEquality")
-  public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-    updateButtonVisibilities();
-    if (trackGroups != lastSeenTrackGroupArray) {
-      MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
-      if (mappedTrackInfo != null) {
-        if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_VIDEO)
-            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
-          onError(getContext().getString(R.string.error_unsupported_video));
-        }
-        if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_AUDIO)
-            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
-          onError(getContext().getString(R.string.error_unsupported_audio));
-        }
-      }
-      lastSeenTrackGroupArray = trackGroups;
-    }
-  }
-
 }
