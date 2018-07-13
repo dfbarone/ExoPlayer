@@ -25,7 +25,7 @@ import com.google.android.exoplayer2.util.ErrorMessageProvider;
  */
 public abstract class PlayerManager extends Player.DefaultEventListener {
 
-  // Injected variables
+  // Injected interfaces
   private EventListener eventListener;
   private InitializePlayer dependencies;
 

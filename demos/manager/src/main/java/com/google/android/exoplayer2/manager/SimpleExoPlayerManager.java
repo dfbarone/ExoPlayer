@@ -140,9 +140,6 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
 
       // Initialize player view
       playerView.setControllerVisibilityListener(this);
-      if (dependencies().getErrorMessageProvider() != null) {
-        playerView.setErrorMessageProvider(dependencies().getErrorMessageProvider());
-      }
       playerView.requestFocus();
 
       // Set root on click listener
@@ -288,6 +285,9 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
       player.setPlayWhenReady(startAutoPlay);
       player.addAnalyticsListener(new EventLogger(trackSelector));
       if (playerView != null) {
+        if (dependencies().getErrorMessageProvider() != null) {
+          playerView.setErrorMessageProvider(dependencies().getErrorMessageProvider());
+        }
         playerView.setPlayer(player);
         playerView.setPlaybackPreparer(this);
       }
