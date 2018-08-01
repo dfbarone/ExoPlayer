@@ -27,7 +27,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
   // Injected interfaces
   private EventListener eventListener;
-  private InitializePlayer dependencies;
+  private PlayerDependencies dependencies;
 
   // Context and root View of player
   private final Context mContext;
@@ -52,11 +52,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
   protected abstract void releasePlayer();
 
-  protected void releaseAdsLoader() {
-    if (dependencies().adsMediaSourceBuilder() != null) {
-      dependencies().adsMediaSourceBuilder().releaseAdsLoader();
-    }
-  }
+  protected abstract void releaseAdsLoader();
 
   /** Getters/Setters*/
   public Context getContext() {
@@ -100,11 +96,11 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     }
   }
 
-  public InitializePlayer dependencies() {
-    return dependencies;
+  public <T extends PlayerDependencies> T playerDependencies() {
+    return (T)dependencies;
   }
 
-  public void setDependencies(InitializePlayer dependencies) {
+  public void setPlayerDependencies(PlayerDependencies dependencies) {
     this.dependencies = dependencies;
   }
 
@@ -155,14 +151,19 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
   }
 
   /** Main initializer builder class*/
-  public static class InitializePlayer {
+  public static class PlayerDependencies<T extends PlayerDependencies.Builder<T>> {
 
     private DataSourceBuilder dataSourceBuilder;
     private MediaSourceBuilder mediaSourceBuilder;
     private DrmSessionManagerBuilder drmSessionManagerBuilder;
     private AdsMediaSourceBuilder adsMediaSourceBuilder;
-    private LoadControl loadControl;
-    private ErrorMessageProvider errorMessageProvider;
+
+    public PlayerDependencies(Builder<T> builder) {
+      this.dataSourceBuilder = builder.dataSourceBuilder;
+      this.mediaSourceBuilder = builder.mediaSourceBuilder;
+      this.drmSessionManagerBuilder = builder.drmSessionManagerBuilder;
+      this.adsMediaSourceBuilder = builder.adsMediaSourceBuilder;
+    }
 
     /*** Required dependency*/
     public DataSourceBuilder dataSourceBuilder() {
@@ -184,73 +185,40 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
       return adsMediaSourceBuilder;
     }
 
-    /** Optional dependency*/
-    public LoadControl loadControl() {
-      return loadControl;
-    }
+    public static class Builder<T extends PlayerDependencies.Builder<T>> {
 
-    public ErrorMessageProvider getErrorMessageProvider() {
-      return errorMessageProvider;
-    }
-
-    public static class Builder {
       private DataSourceBuilder dataSourceBuilder;
       private MediaSourceBuilder mediaSourceBuilder;
       private DrmSessionManagerBuilder drmSessionManagerBuilder;
       private AdsMediaSourceBuilder adsMediaSourceBuilder;
-      private LoadControl loadControl;
-      private ErrorMessageProvider errorMessageProvider;
 
       public Builder(DataSourceBuilder dataSourceBuilder, MediaSourceBuilder mediaSourceBuilder) {
         setDataSourceBuilder(dataSourceBuilder);
         setMediaSourceBuilder(mediaSourceBuilder);
       }
 
-      public Builder setDataSourceBuilder(DataSourceBuilder dataSourceBuilder) {
-        if (dataSourceBuilder == null) {
-          throw new IllegalArgumentException("DataSourceBuilder may not be null");
-        }
+      public T setDataSourceBuilder(DataSourceBuilder dataSourceBuilder) {
         this.dataSourceBuilder = dataSourceBuilder;
-        return this;
+        return (T)this;
       }
 
-      public Builder setMediaSourceBuilder(MediaSourceBuilder mediaSourceBuilder) {
-        if (mediaSourceBuilder == null) {
-          throw new IllegalArgumentException("MediaSourceBuilder may not be null");
-        }
+      public T setMediaSourceBuilder(MediaSourceBuilder mediaSourceBuilder) {
         this.mediaSourceBuilder = mediaSourceBuilder;
-        return this;
+        return (T)this;
       }
 
-      public Builder setDrmSessionManagerBuilder(DrmSessionManagerBuilder drmSessionManagerBuilder) {
+      public T setDrmSessionManagerBuilder(DrmSessionManagerBuilder drmSessionManagerBuilder) {
         this.drmSessionManagerBuilder = drmSessionManagerBuilder;
-        return this;
+        return (T)this;
       }
 
-      public Builder setAdsMediaSourceBuilder(AdsMediaSourceBuilder adsMediaSourceBuilder) {
+      public T setAdsMediaSourceBuilder(AdsMediaSourceBuilder adsMediaSourceBuilder) {
         this.adsMediaSourceBuilder = adsMediaSourceBuilder;
-        return this;
+        return (T)this;
       }
 
-      public Builder setLoadControl(LoadControl loadControl) {
-        this.loadControl = loadControl;
-        return this;
-      }
-
-      public Builder setErrorMessageProvider(ErrorMessageProvider errorMessageProvider) {
-        this.errorMessageProvider = errorMessageProvider;
-        return this;
-      }
-
-      public InitializePlayer build() {
-        InitializePlayer dep = new InitializePlayer();
-        dep.dataSourceBuilder = this.dataSourceBuilder;
-        dep.mediaSourceBuilder = this.mediaSourceBuilder;
-        dep.drmSessionManagerBuilder = this.drmSessionManagerBuilder;
-        dep.adsMediaSourceBuilder = this.adsMediaSourceBuilder;
-        dep.loadControl = this.loadControl;
-        dep.errorMessageProvider = this.errorMessageProvider;
-        return dep;
+      public PlayerDependencies<T> build() {
+        return new PlayerDependencies<>(this);
       }
     }
   }

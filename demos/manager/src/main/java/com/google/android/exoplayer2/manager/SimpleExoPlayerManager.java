@@ -32,6 +32,7 @@ import android.widget.TextView;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
+import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.SimpleExoPlayer;
@@ -60,6 +61,7 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
 import com.google.android.exoplayer2.util.Util;
 
@@ -121,6 +123,9 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
       CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
     }
 
+    setPlayerDependencies(new CustomPlayerDependencies.Builder(new DefaultDataSourceBuilder(),
+            new DefaultMediaSourceBuilder()).build());
+
     if (getView() != null) {
       // Find views
       playerView = getView().findViewById(R.id.player_view);
@@ -148,9 +153,6 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
 
     // Restore instance state
     onRestoreInstanceState(null);
-
-    setDependencies(new InitializePlayer.Builder(new DefaultDataSourceBuilder(),
-        new DefaultMediaSourceBuilder()).build());
   }
 
   @Override
@@ -159,8 +161,8 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
   }
 
   @Override
-  public void setDependencies(InitializePlayer dependencies) {
-    super.setDependencies(dependencies);
+  public void setPlayerDependencies(PlayerDependencies dependencies) {
+    super.setPlayerDependencies(dependencies);
     mediaDataSourceFactory = dependencies.dataSourceBuilder().buildDataSourceFactory(true);
   }
 
@@ -240,7 +242,7 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
           errorStringId = R.string.error_drm_not_supported;
         } else {
           try {
-            drmSessionManager = dependencies().drmSessionManagerBuilder().buildDrmSessionManager();
+            drmSessionManager = playerDependencies().drmSessionManagerBuilder().buildDrmSessionManager();
           } catch (UnsupportedDrmException e) {
             errorStringId = e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
                 ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown;
@@ -285,8 +287,8 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
       player.setPlayWhenReady(startAutoPlay);
       player.addAnalyticsListener(new EventLogger(trackSelector));
       if (playerView != null) {
-        if (dependencies().getErrorMessageProvider() != null) {
-          playerView.setErrorMessageProvider(dependencies().getErrorMessageProvider());
+        if (playerDependencies() instanceof CustomPlayerDependencies && ((CustomPlayerDependencies)playerDependencies()).errorMessageProvider() != null) {
+          playerView.setErrorMessageProvider(((CustomPlayerDependencies)playerDependencies()).errorMessageProvider());
         }
         playerView.setPlayer(player);
         playerView.setPlaybackPreparer(this);
@@ -298,20 +300,20 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
 
       MediaSource[] mediaSources = new MediaSource[uris.length];
       for (int i = 0; i < uris.length; i++) {
-        mediaSources[i] = dependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
+        mediaSources[i] = playerDependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
       }
       mediaSource =
           mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
 
       // initialize AdsLoader
       String adTagUriString = intent.getStringExtra(AD_TAG_URI_EXTRA);
-      if (adTagUriString != null && dependencies().adsMediaSourceBuilder() != null) {
+      if (adTagUriString != null && playerDependencies().adsMediaSourceBuilder() != null) {
         Uri adTagUri = Uri.parse(adTagUriString);
         if (!adTagUri.equals(loadedAdTagUri)) {
           releaseAdsLoader();
           loadedAdTagUri = adTagUri;
         }
-        MediaSource adsMediaSource = dependencies().adsMediaSourceBuilder().createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
+        MediaSource adsMediaSource = playerDependencies().adsMediaSourceBuilder().createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
         if (adsMediaSource != null) {
           mediaSource = adsMediaSource;
         } else {
@@ -348,7 +350,9 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
   @Override
   public void releaseAdsLoader() {
     loadedAdTagUri = null;
-    super.releaseAdsLoader();
+    if (playerDependencies().adsMediaSourceBuilder() != null) {
+      playerDependencies().adsMediaSourceBuilder().releaseAdsLoader();
+    }
   }
 
   // User controls
@@ -409,10 +413,11 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
     PlayerUtils.setDebugVisibility(debugTextView, debug(), visibility);
   }
 
+  // Player.DefaultEventListener
   @Override
   @SuppressWarnings("ReferenceEquality")
   public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-    updateButtonVisibilities();
+    super.onTracksChanged(trackGroups, trackSelections);
     if (trackGroups != lastSeenTrackGroupArray) {
       MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
       if (mappedTrackInfo != null) {
@@ -430,7 +435,12 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
   }
 
   public LoadControl getLoadControl() {
-    return (dependencies().loadControl() != null ? dependencies().loadControl() : new DefaultLoadControl());
+    if (playerDependencies() instanceof CustomPlayerDependencies &&
+            ((CustomPlayerDependencies)playerDependencies()).loadControl() != null) {
+      return ((CustomPlayerDependencies)playerDependencies()).loadControl();
+    } else {
+      return new DefaultLoadControl();
+    }
   }
 
   public class DefaultDataSourceBuilder implements DataSourceBuilder {
@@ -462,9 +472,55 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
     @SuppressWarnings("unchecked")
     public MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension) {
       return PlayerUtils.buildSimpleMediaSource(
-          dependencies().dataSourceBuilder().buildDataSourceFactory(false),
+          playerDependencies().dataSourceBuilder().buildDataSourceFactory(false),
           mediaDataSourceFactory, uri, overrideExtension);
     }
+  }
+
+  // Extend base initializePlayer() method dependency builder
+  public static class CustomPlayerDependencies<B extends CustomPlayerDependencies.Builder<B>> extends PlayerDependencies<B> {
+
+    private LoadControl loadControl;
+    private ErrorMessageProvider errorMessageProvider;
+
+    public CustomPlayerDependencies(Builder<B> builder) {
+      super(builder);
+      this.loadControl = builder.loadControl;
+      this.errorMessageProvider = builder.errorMessageProvider;
+    }
+
+    public LoadControl loadControl() {
+      return loadControl;
+    }
+
+    public ErrorMessageProvider errorMessageProvider() {
+      return errorMessageProvider;
+    }
+
+    public static class Builder<T extends CustomPlayerDependencies.Builder<T>> extends PlayerDependencies.Builder<T> {
+
+      private LoadControl loadControl;
+      private ErrorMessageProvider<ExoPlaybackException> errorMessageProvider;
+
+      public Builder(DataSourceBuilder dataSourceBuilder, MediaSourceBuilder mediaSourceBuilder) {
+        super(dataSourceBuilder, mediaSourceBuilder);
+      }
+
+      public T setLoadControl(LoadControl loadControl) {
+        this.loadControl = loadControl;
+        return (T)this;
+      }
+
+      public T setErrorMessageProvider(ErrorMessageProvider<ExoPlaybackException> errorMessageProvider) {
+        this.errorMessageProvider = errorMessageProvider;
+        return (T)this;
+      }
+
+      public CustomPlayerDependencies build() {
+        return new CustomPlayerDependencies(this);
+      }
+    }
+
   }
 
 }

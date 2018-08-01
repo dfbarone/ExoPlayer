@@ -47,14 +47,14 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
     super(context, root);
 
     /* Customizations in intializePlayer */
-    setDependencies(
-        new InitializePlayer.Builder(
+    setPlayerDependencies(
+        new CustomPlayerDependencies.Builder(
             new DemoDataSourceBuilder(),
             new DefaultMediaSourceBuilder()
         )
+            .setErrorMessageProvider(new PlayerErrorMessageProvider())
             .setDrmSessionManagerBuilder(new DemoDrmSessionManagerBuilder())
             .setAdsMediaSourceBuilder(new DemoAdsMediaSourceBuilder())
-            .setErrorMessageProvider(new PlayerErrorMessageProvider())
             .build()
     );
   }
@@ -161,7 +161,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
             new AdsMediaSource.MediaSourceFactory() {
               @Override
               public MediaSource createMediaSource(Uri uri) {
-                return dependencies().mediaSourceBuilder().buildMediaSource(uri);
+                return playerDependencies().mediaSourceBuilder().buildMediaSource(uri);
               }
 
               @Override

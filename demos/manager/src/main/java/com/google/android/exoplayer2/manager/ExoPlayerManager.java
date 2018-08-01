@@ -147,4 +147,10 @@ public abstract class ExoPlayerManager extends PlayerManager
     onError("onPlayerError", e);
   }
 
+    @Override
+    @SuppressWarnings("ReferenceEquality")
+    public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+        updateButtonVisibilities();
+    }
+
 }
