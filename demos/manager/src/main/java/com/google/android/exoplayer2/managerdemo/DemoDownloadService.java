@@ -16,7 +16,6 @@
 package com.google.android.exoplayer2.managerdemo;
 
 import android.app.Notification;
-
 import com.google.android.exoplayer2.offline.DownloadManager;
 import com.google.android.exoplayer2.offline.DownloadManager.TaskState;
 import com.google.android.exoplayer2.offline.DownloadService;

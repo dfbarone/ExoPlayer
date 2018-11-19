@@ -280,7 +280,7 @@ public class DownloadTracker implements DownloadManager.Listener {
     @Override
     public void onPrepareError(DownloadHelper helper, IOException e) {
       Toast.makeText(
-              context.getApplicationContext(), R.string.download_start_error, Toast.LENGTH_LONG)
+          context.getApplicationContext(), R.string.download_start_error, Toast.LENGTH_LONG)
           .show();
     }
 

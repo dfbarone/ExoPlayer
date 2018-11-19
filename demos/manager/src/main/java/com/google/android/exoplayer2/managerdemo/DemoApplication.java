@@ -16,7 +16,8 @@
 package com.google.android.exoplayer2.managerdemo;
 
 import android.app.Application;
-
+import com.google.android.exoplayer2.managerdemo.BuildConfig;
+import com.google.android.exoplayer2.managerdemo.DownloadTracker;
 import com.google.android.exoplayer2.offline.DownloadAction.Deserializer;
 import com.google.android.exoplayer2.offline.DownloadManager;
 import com.google.android.exoplayer2.offline.DownloaderConstructorHelper;
@@ -49,10 +50,10 @@ public class DemoApplication extends Application {
   private static final int MAX_SIMULTANEOUS_DOWNLOADS = 2;
   private static final Deserializer[] DOWNLOAD_DESERIALIZERS =
       new Deserializer[] {
-        DashDownloadAction.DESERIALIZER,
-        HlsDownloadAction.DESERIALIZER,
-        SsDownloadAction.DESERIALIZER,
-        ProgressiveDownloadAction.DESERIALIZER
+          DashDownloadAction.DESERIALIZER,
+          HlsDownloadAction.DESERIALIZER,
+          SsDownloadAction.DESERIALIZER,
+          ProgressiveDownloadAction.DESERIALIZER
       };
 
   protected String userAgent;

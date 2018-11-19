@@ -18,8 +18,8 @@ import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
-import com.google.android.exoplayer2.manager.util.ContextHelper;
-import com.google.android.exoplayer2.manager.SimpleExoPlayerManager;
+import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
+import com.dfbarone.android.exoplayer2.manager.SimpleExoPlayerManager;
 import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.source.MediaSource;
@@ -71,7 +71,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
       initializePlayer();
     } else {
       onError(getContext().getString(R.string.storage_permission_denied));
-      finish(getContext().getString(R.string.storage_permission_denied));
+      //finish(getContext().getString(R.string.storage_permission_denied));
     }
   }
 
