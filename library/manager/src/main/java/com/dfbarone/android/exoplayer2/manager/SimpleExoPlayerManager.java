@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.android.exoplayer2.manager;
+package com.dfbarone.android.exoplayer2.manager;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -39,9 +39,8 @@ import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
-import com.google.android.exoplayer2.manager.util.ContextHelper;
-import com.google.android.exoplayer2.manager.util.PlayerUtils;
-import com.google.android.exoplayer2.managerdemo.R;
+import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
+import com.dfbarone.android.exoplayer2.manager.util.PlayerUtils;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
@@ -64,6 +63,7 @@ import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
 import com.google.android.exoplayer2.util.Util;
+import com.dfbarone.android.exoplayer2.manager.R;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -75,10 +75,13 @@ import java.net.CookiePolicy;
 public class SimpleExoPlayerManager extends ExoPlayerManager
     implements OnClickListener {
 
-  public static final String ACTION_VIEW = "com.google.android.exoplayer.demo.action.VIEW";
+  public static final String ACTION_VIEW = "com.dfbarone.android.exoplayer2.manager.action.VIEW";
+  public static final String ACTION_VIEW_CUSTOM = "com.dfbarone.android.exoplayer2.manager.action.VIEW_CUSTOM";
+  public static final String URI_EXTRA = "uri";
   public static final String EXTENSION_EXTRA = "extension";
 
-  public static final String ACTION_VIEW_LIST = "com.google.android.exoplayer.demo.action.VIEW_LIST";
+  public static final String ACTION_VIEW_LIST = "com.dfbarone.android.exoplayer2.manager.action.VIEW_LIST";
+  public static final String ACTION_VIEW_LIST_CUSTOM = "com.dfbarone.android.exoplayer2.manager.action.VIEW_LIST_CUSTOM";
   public static final String URI_LIST_EXTRA = "uri_list";
   public static final String EXTENSION_LIST_EXTRA = "extension_list";
 
@@ -133,14 +136,9 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
         throw new IllegalStateException("Your view must contain a PlayerView with an id of R.id.player_view");
       }
       debugRootView = getView().findViewById(R.id.controls_root);
-      if (debugRootView == null) {
-        throw new IllegalStateException("Your view must contain a LinearLayout with an id of R.id.controls_root");
-      }
       debugTextView = getView().findViewById(R.id.debug_text_view);
-      if (debugTextView == null) {
-        throw new IllegalStateException("Your view must contain a TextView with an id of R.id.debug_text_view");
-      }
-      setDebugTextVisibility(View.GONE);
+
+      setDebugTextVisibility(View.VISIBLE);
       setDebugRootVisibility(View.GONE);
 
       // Initialize player view
@@ -200,7 +198,7 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
   // PlaybackControlView.VisibilityListener implementation
   @Override
   public void onVisibilityChange(int visibility) {
-    setDebugTextVisibility(View.VISIBLE == visibility ? View.GONE : View.VISIBLE);
+    setDebugTextVisibility(View.VISIBLE);
     setDebugRootVisibility(visibility);
   }
 
@@ -228,8 +226,8 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
           extensions = new String[uriStrings.length];
         }
       } else {
-        onError(getContext().getString(R.string.unexpected_intent_action, action));
-        finish(getContext().getString(R.string.unexpected_intent_action, action));
+        onError(getContext().getString(R.string.unexpected_intent_action, action), new IllegalStateException(getContext().getString(R.string.unexpected_intent_action, action)));
+        //finish(getContext().getString(R.string.unexpected_intent_action, action));
         return;
       }
 
@@ -251,8 +249,8 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
           }
         }
         if (drmSessionManager == null) {
-          onError(getContext().getString(errorStringId));
-          finish(getContext().getString(errorStringId));
+          onError(getContext().getString(errorStringId), new IllegalStateException(getContext().getString(errorStringId)));
+          //finish(getContext().getString(errorStringId));
           return;
         }
       }
@@ -265,8 +263,8 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
       } else if (ABR_ALGORITHM_RANDOM.equals(abrAlgorithm)) {
         trackSelectionFactory = new RandomTrackSelection.Factory();
       } else {
-        onError(getContext().getString(R.string.error_unrecognized_abr_algorithm));
-        finish(getContext().getString(R.string.error_unrecognized_abr_algorithm));
+        onError(getContext().getString(R.string.error_unrecognized_abr_algorithm), new IllegalStateException(getContext().getString(R.string.error_unrecognized_abr_algorithm)));
+        //finish(getContext().getString(R.string.error_unrecognized_abr_algorithm));
         return;
       }
 
@@ -317,7 +315,7 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
         if (adsMediaSource != null) {
           mediaSource = adsMediaSource;
         } else {
-          onError(getContext().getString(R.string.ima_not_loaded));
+          onError(getContext().getString(R.string.ima_not_loaded), new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
         }
       } else {
         releaseAdsLoader();
@@ -401,7 +399,6 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
 
   @Override
   protected void showControls() {
-    setDebugTextVisibility(View.GONE);
     setDebugRootVisibility(View.VISIBLE);
   }
 
@@ -497,7 +494,7 @@ public class SimpleExoPlayerManager extends ExoPlayerManager
       return errorMessageProvider;
     }
 
-    public static class Builder<T extends CustomPlayerDependencies.Builder<T>> extends PlayerDependencies.Builder<T> {
+    public static class Builder<T extends Builder<T>> extends PlayerDependencies.Builder<T> {
 
       private LoadControl loadControl;
       private ErrorMessageProvider<ExoPlaybackException> errorMessageProvider;

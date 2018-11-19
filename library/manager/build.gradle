@@ -22,6 +22,14 @@ android {
         minSdkVersion project.ext.minSdkVersion
         targetSdkVersion project.ext.targetSdkVersion
     }
+
+    buildTypes {
+        // Re-enable test coverage when the following issue is fixed:
+        // https://issuetracker.google.com/issues/37019591
+        // debug {
+        //    testCoverageEnabled = true
+        // }
+    }
 }
 
 dependencies {
@@ -30,11 +38,18 @@ dependencies {
     api project(modulePrefix + 'library-hls')
     api project(modulePrefix + 'library-smoothstreaming')
     api project(modulePrefix + 'library-ui')
-    api project(modulePrefix + 'library-manager')
+    implementation 'com.android.support:support-media-compat:' + supportLibraryVersion
+    implementation 'com.android.support:support-annotations:' + supportLibraryVersion
+    compileOnly 'org.checkerframework:checker-qual:' + checkerframeworkVersion
 }
 
 ext {
-    releaseArtifact = 'exoplayer'
-    releaseDescription = 'The ExoPlayer library (all modules).'
+    javadocTitle = 'Manager module'
+}
+apply from: '../../javadoc_library.gradle'
+
+ext {
+    releaseArtifact = 'exoplayer-manager'
+    releaseDescription = 'The ExoPlayer library Manager module.'
 }
 apply from: '../../publish.gradle'

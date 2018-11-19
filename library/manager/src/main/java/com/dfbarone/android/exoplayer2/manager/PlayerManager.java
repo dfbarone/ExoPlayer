@@ -1,4 +1,4 @@
-package com.google.android.exoplayer2.manager;
+package com.dfbarone.android.exoplayer2.manager;
 
 import android.content.Context;
 import android.content.Intent;
@@ -90,9 +90,9 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     }
   }
 
-  protected void finish(String reason) {
+  protected void finish() {
     if (eventListener != null) {
-      eventListener.onFinish(reason);
+      eventListener.onFinish();
     }
   }
 
@@ -115,10 +115,10 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
      */
     void onError(String message, Exception e);
 
-    /** Programmatic attempt to close player
-     * @param reason empty or null reason means user initiated close
+    /**
+     * User attempt to close player
      */
-    void onFinish(String reason);
+    void onFinish();
   }
 
   /** MediaSource builder methods*/
@@ -185,7 +185,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
       return adsMediaSourceBuilder;
     }
 
-    public static class Builder<T extends PlayerDependencies.Builder<T>> {
+    public static class Builder<T extends Builder<T>> {
 
       private DataSourceBuilder dataSourceBuilder;
       private MediaSourceBuilder mediaSourceBuilder;

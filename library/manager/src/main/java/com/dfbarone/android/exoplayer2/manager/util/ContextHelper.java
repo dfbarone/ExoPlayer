@@ -1,4 +1,4 @@
-package com.google.android.exoplayer2.manager.util;
+package com.dfbarone.android.exoplayer2.manager.util;
 
 import android.app.Activity;
 import android.app.Application;
