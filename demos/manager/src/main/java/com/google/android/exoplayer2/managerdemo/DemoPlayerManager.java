@@ -40,6 +40,12 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
   public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
   public static final String DRM_KEY_REQUEST_PROPERTIES_EXTRA = "drm_key_request_properties";
   public static final String DRM_MULTI_SESSION_EXTRA = "drm_multi_session";
+
+  public static final String SPHERICAL_STEREO_MODE_EXTRA = "spherical_stereo_mode";
+  public static final String SPHERICAL_STEREO_MODE_MONO = "mono";
+  public static final String SPHERICAL_STEREO_MODE_TOP_BOTTOM = "top_bottom";
+  public static final String SPHERICAL_STEREO_MODE_LEFT_RIGHT = "left_right";
+
   // For backwards compatibility only.
   private static final String DRM_SCHEME_UUID_EXTRA = "drm_scheme_uuid";
 
@@ -77,19 +83,16 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
 
   private class DemoDataSourceBuilder implements DataSourceBuilder {
     @Override
-    public DataSource.Factory buildDataSourceFactory(boolean useBandwidthMeter) {
-      // Optional
-      TransferListener<? super DataSource> listener = useBandwidthMeter ? BANDWIDTH_METER : null;
-      return ((DemoApplication) ContextHelper.getApplication(getContext())).buildDataSourceFactory(listener);
+    public DataSource.Factory buildDataSourceFactory() {
+      return ((DemoApplication) ContextHelper.getApplication(getContext())).buildDataSourceFactory();
     }
 
     /**
      * Returns a {@link HttpDataSource.Factory}.
      */
     @Override
-    public HttpDataSource.Factory buildHttpDataSourceFactory(
-        TransferListener<? super DataSource> listener) {
-      return ((DemoApplication) ContextHelper.getApplication(getContext())).buildHttpDataSourceFactory(listener);
+    public HttpDataSource.Factory buildHttpDataSourceFactory() {
+      return ((DemoApplication) ContextHelper.getApplication(getContext())).buildHttpDataSourceFactory();
     }
   }
 
@@ -113,7 +116,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
         UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
         throws UnsupportedDrmException {
       HttpDataSource.Factory licenseDataSourceFactory =
-          ((DemoApplication) ContextHelper.getApplication(getContext())).buildHttpDataSourceFactory(/* listener= */ null);
+          ((DemoApplication) ContextHelper.getApplication(getContext())).buildHttpDataSourceFactory();
       HttpMediaDrmCallback drmCallback =
           new HttpMediaDrmCallback(licenseUrl, licenseDataSourceFactory);
       if (keyRequestPropertiesArray != null) {

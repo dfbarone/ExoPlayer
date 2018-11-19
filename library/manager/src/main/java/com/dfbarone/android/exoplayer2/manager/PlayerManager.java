@@ -131,11 +131,10 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
   /** DataSource.Factory builder methods*/
   public interface DataSourceBuilder {
     /*** Returns a {@link DataSource.Factory}.*/
-    DataSource.Factory buildDataSourceFactory(boolean useBandwidthMeter);
+    DataSource.Factory buildDataSourceFactory();
 
     /*** Returns a {@link HttpDataSource.Factory}.*/
-    HttpDataSource.Factory buildHttpDataSourceFactory(
-        TransferListener<? super DataSource> listener);
+    HttpDataSource.Factory buildHttpDataSourceFactory();
   }
 
   /** Drm builder methods*/
