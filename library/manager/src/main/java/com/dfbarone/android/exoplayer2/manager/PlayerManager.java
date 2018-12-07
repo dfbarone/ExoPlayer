@@ -23,7 +23,7 @@ import com.google.android.exoplayer2.util.ErrorMessageProvider;
  * A class to enforce common and hopefully useful ExoPlayer methods.
  * This class attempts to avoid ui or state methods.
  */
-public abstract class PlayerManager extends Player.DefaultEventListener {
+public abstract class PlayerManager<D> implements Player.EventListener {
 
   // Injected interfaces
   private EventListener eventListener;
@@ -33,10 +33,15 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
   private final Context mContext;
   private final View itemView;
 
-  // Optional place to store playback information here
+  // 1) Optional place to store playback information. In many cases this is probably the simplest
+  // way to store playback information.
   private Intent mIntent = new Intent();
 
-  /** Default constructor*/
+  // 2) Optional place to store playback information. In some cases that may be easier than using
+  // an intent.
+  private D mData = null;
+
+  /** Default constructor */
   protected PlayerManager(Context context, View itemView) {
     if (context == null) {
       throw new IllegalArgumentException("context may not be null");
@@ -45,7 +50,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     this.itemView = itemView;
   }
 
-  /** Common player methods*/
+  /** Common player methods */
   protected abstract <T extends Player> T getPlayer();
 
   protected abstract void initializePlayer();
@@ -54,7 +59,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
   protected abstract void releaseAdsLoader();
 
-  /** Getters/Setters*/
+  /** Getters/Setters */
   public Context getContext() {
     return mContext;
   }
@@ -70,6 +75,15 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
   public void setIntent(Intent intent) {
     mIntent = intent;
+  }
+
+  // Data methods
+  public D getData() {
+    return mData;
+  }
+
+  public void setData(D data) {
+    mData = data;
   }
 
   // Listener for internal need to finish
@@ -97,7 +111,7 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
   }
 
   public <T extends PlayerDependencies> T playerDependencies() {
-    return (T)dependencies;
+    return (T) dependencies;
   }
 
   public void setPlayerDependencies(PlayerDependencies dependencies) {
@@ -105,13 +119,15 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
   }
 
   /**
-   *  PlayerManager Dependencies
+   * PlayerManager Dependencies
    */
   public interface EventListener {
 
-    /** Initialization errors for output
+    /**
+     * Initialization errors for output
+     *
      * @param message non player related error
-     * @param e       ExoPlayerException, if valid will be a player related error
+     * @param e ExoPlayerException, if valid will be a player related error
      */
     void onError(String message, Exception e);
 
@@ -121,14 +137,14 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     void onFinish();
   }
 
-  /** MediaSource builder methods*/
+  /** MediaSource builder methods */
   public interface MediaSourceBuilder {
     MediaSource buildMediaSource(Uri uri);
 
     MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension);
   }
 
-  /** DataSource.Factory builder methods*/
+  /** DataSource.Factory builder methods */
   public interface DataSourceBuilder {
     /*** Returns a {@link DataSource.Factory}.*/
     DataSource.Factory buildDataSourceFactory();
@@ -137,19 +153,20 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
     HttpDataSource.Factory buildHttpDataSourceFactory();
   }
 
-  /** Drm builder methods*/
+  /** Drm builder methods */
   public interface DrmSessionManagerBuilder {
-    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManager() throws UnsupportedDrmException;
+    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManager()
+        throws UnsupportedDrmException;
   }
 
-  /** Ads builder methods*/
+  /** Ads builder methods */
   public interface AdsMediaSourceBuilder {
     MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri);
 
     void releaseAdsLoader();
   }
 
-  /** Main initializer builder class*/
+  /** Main initializer builder class */
   public static class PlayerDependencies<T extends PlayerDependencies.Builder<T>> {
 
     private DataSourceBuilder dataSourceBuilder;
@@ -198,22 +215,22 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
 
       public T setDataSourceBuilder(DataSourceBuilder dataSourceBuilder) {
         this.dataSourceBuilder = dataSourceBuilder;
-        return (T)this;
+        return (T) this;
       }
 
       public T setMediaSourceBuilder(MediaSourceBuilder mediaSourceBuilder) {
         this.mediaSourceBuilder = mediaSourceBuilder;
-        return (T)this;
+        return (T) this;
       }
 
       public T setDrmSessionManagerBuilder(DrmSessionManagerBuilder drmSessionManagerBuilder) {
         this.drmSessionManagerBuilder = drmSessionManagerBuilder;
-        return (T)this;
+        return (T) this;
       }
 
       public T setAdsMediaSourceBuilder(AdsMediaSourceBuilder adsMediaSourceBuilder) {
         this.adsMediaSourceBuilder = adsMediaSourceBuilder;
-        return (T)this;
+        return (T) this;
       }
 
       public PlayerDependencies<T> build() {
@@ -221,5 +238,4 @@ public abstract class PlayerManager extends Player.DefaultEventListener {
       }
     }
   }
-
 }

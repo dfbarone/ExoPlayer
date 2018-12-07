@@ -19,7 +19,7 @@ import com.google.android.exoplayer2.ui.PlayerControlView;
 /**
  * This class attempts to abstract basic state and non ui functionality.
  */
-public abstract class ExoPlayerManager extends PlayerManager
+public abstract class ExoPlayerManager<D> extends PlayerManager<D>
     implements PlaybackPreparer, PlayerControlView.VisibilityListener {
 
   // Saved instance state keys.
@@ -147,10 +147,9 @@ public abstract class ExoPlayerManager extends PlayerManager
     onError("onPlayerError", e);
   }
 
-    @Override
-    @SuppressWarnings("ReferenceEquality")
-    public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-        updateButtonVisibilities();
-    }
-
+  @Override
+  @SuppressWarnings("ReferenceEquality")
+  public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+    updateButtonVisibilities();
+  }
 }
