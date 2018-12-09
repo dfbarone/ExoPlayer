@@ -211,137 +211,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   @Override
   public void initializePlayer() {
     if (player == null) {
-      Intent intent = getIntent();
-
-      // initialize arguments
-      String action = intent.getAction();
-      Uri[] uris;
-      String[] extensions;
-      if (ACTION_VIEW.equals(action)) {
-        uris = new Uri[] { intent.getData() };
-        extensions = new String[] { intent.getStringExtra(EXTENSION_EXTRA) };
-      } else if (ACTION_VIEW_LIST.equals(action)) {
-        String[] uriStrings = intent.getStringArrayExtra(URI_LIST_EXTRA);
-        uris = new Uri[uriStrings.length];
-        for (int i = 0; i < uriStrings.length; i++) {
-          uris[i] = Uri.parse(uriStrings[i]);
-        }
-        extensions = intent.getStringArrayExtra(EXTENSION_LIST_EXTRA);
-        if (extensions == null) {
-          extensions = new String[uriStrings.length];
-        }
-      } else {
-        onError(getContext().getString(R.string.unexpected_intent_action, action),
-            new IllegalStateException(
-                getContext().getString(R.string.unexpected_intent_action, action)));
-        //finish(getContext().getString(R.string.unexpected_intent_action, action));
-        return;
-      }
-
-      // initialize drm
-      DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
-      if ((intent.hasExtra(DRM_SCHEME_EXTRA) &&
-          !TextUtils.isEmpty(intent.getStringExtra(DRM_SCHEME_EXTRA)))) {
-        int errorStringId = R.string.error_drm_unknown;
-        if (Util.SDK_INT < 18) {
-          errorStringId = R.string.error_drm_not_supported;
-        } else {
-          try {
-            drmSessionManager =
-                playerDependencies().drmSessionManagerBuilder().buildDrmSessionManager();
-          } catch (UnsupportedDrmException e) {
-            errorStringId = e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
-                ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown;
-          } catch (Exception e) {
-
-          }
-        }
-        if (drmSessionManager == null) {
-          onError(getContext().getString(errorStringId),
-              new IllegalStateException(getContext().getString(errorStringId)));
-          //finish(getContext().getString(errorStringId));
-          return;
-        }
-      }
-
-      // initialize track selection
-      TrackSelection.Factory trackSelectionFactory;
-      String abrAlgorithm = intent.getStringExtra(ABR_ALGORITHM_EXTRA);
-      if (abrAlgorithm == null || ABR_ALGORITHM_DEFAULT.equals(abrAlgorithm)) {
-        trackSelectionFactory = new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
-      } else if (ABR_ALGORITHM_RANDOM.equals(abrAlgorithm)) {
-        trackSelectionFactory = new RandomTrackSelection.Factory();
-      } else {
-        onError(getContext().getString(R.string.error_unrecognized_abr_algorithm),
-            new IllegalStateException(
-                getContext().getString(R.string.error_unrecognized_abr_algorithm)));
-        //finish(getContext().getString(R.string.error_unrecognized_abr_algorithm));
-        return;
-      }
-
-      @DefaultRenderersFactory.ExtensionRendererMode int extensionRendererMode =
-          DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
-      if (intent.hasExtra(PREFER_EXTENSION_DECODERS_EXTRA)) {
-        boolean preferExtensionDecoders =
-            intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
-        extensionRendererMode =
-            preferExtensionDecoders ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON;
-      }
-
-      DefaultRenderersFactory renderersFactory =
-          new DefaultRenderersFactory(getContext(), extensionRendererMode);
-
-      trackSelector = new DefaultTrackSelector(trackSelectionFactory);
-      trackSelector.setParameters(trackSelectorParameters);
-      lastSeenTrackGroupArray = null;
-
-      player = ExoPlayerFactory.newSimpleInstance(getContext(), renderersFactory, trackSelector,
-          getLoadControl(), drmSessionManager, BANDWIDTH_METER);
-      player.addListener(this);
-      player.setPlayWhenReady(startAutoPlay);
-      player.addAnalyticsListener(new EventLogger(trackSelector));
-      if (playerView != null) {
-        if (playerDependencies() instanceof CustomPlayerDependencies
-            && ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider() != null) {
-          playerView.setErrorMessageProvider(
-              ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider());
-        }
-        playerView.setPlayer(player);
-        playerView.setPlaybackPreparer(this);
-      }
-      if (debugTextView != null) {
-        debugViewHelper = new DebugTextViewHelper(player, debugTextView);
-        debugViewHelper.start();
-      }
-
-      MediaSource[] mediaSources = new MediaSource[uris.length];
-      for (int i = 0; i < uris.length; i++) {
-        mediaSources[i] =
-            playerDependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
-      }
-      mediaSource =
-          mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
-
-      // initialize AdsLoader
-      String adTagUriString = intent.getStringExtra(AD_TAG_URI_EXTRA);
-      if (adTagUriString != null && playerDependencies().adsMediaSourceBuilder() != null) {
-        Uri adTagUri = Uri.parse(adTagUriString);
-        if (!adTagUri.equals(loadedAdTagUri)) {
-          releaseAdsLoader();
-          loadedAdTagUri = adTagUri;
-        }
-        MediaSource adsMediaSource = playerDependencies().adsMediaSourceBuilder()
-            .createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
-        if (adsMediaSource != null) {
-          mediaSource = adsMediaSource;
-        } else {
-          onError(getContext().getString(R.string.ima_not_loaded),
-              new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
-        }
-      } else {
-        releaseAdsLoader();
-      }
+      buildPlayer();
     }
     boolean haveStartPosition = startWindow != C.INDEX_UNSET;
     if (haveStartPosition) {
@@ -349,6 +219,140 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     }
     player.prepare(mediaSource, !haveStartPosition, false);
     updateButtonVisibilities();
+  }
+
+  protected void buildPlayer() {
+    Intent intent = getIntent();
+
+    // initialize arguments
+    String action = intent.getAction();
+    Uri[] uris;
+    String[] extensions;
+    if (ACTION_VIEW.equals(action)) {
+      uris = new Uri[] { intent.getData() };
+      extensions = new String[] { intent.getStringExtra(EXTENSION_EXTRA) };
+    } else if (ACTION_VIEW_LIST.equals(action)) {
+      String[] uriStrings = intent.getStringArrayExtra(URI_LIST_EXTRA);
+      uris = new Uri[uriStrings.length];
+      for (int i = 0; i < uriStrings.length; i++) {
+        uris[i] = Uri.parse(uriStrings[i]);
+      }
+      extensions = intent.getStringArrayExtra(EXTENSION_LIST_EXTRA);
+      if (extensions == null) {
+        extensions = new String[uriStrings.length];
+      }
+    } else {
+      onError(getContext().getString(R.string.unexpected_intent_action, action),
+              new IllegalStateException(
+                      getContext().getString(R.string.unexpected_intent_action, action)));
+      //finish(getContext().getString(R.string.unexpected_intent_action, action));
+      return;
+    }
+
+    // initialize drm
+    DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
+    if ((intent.hasExtra(DRM_SCHEME_EXTRA) &&
+            !TextUtils.isEmpty(intent.getStringExtra(DRM_SCHEME_EXTRA)))) {
+      int errorStringId = R.string.error_drm_unknown;
+      if (Util.SDK_INT < 18) {
+        errorStringId = R.string.error_drm_not_supported;
+      } else {
+        try {
+          drmSessionManager =
+                  playerDependencies().drmSessionManagerBuilder().buildDrmSessionManager();
+        } catch (UnsupportedDrmException e) {
+          errorStringId = e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
+                  ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown;
+        } catch (Exception e) {
+
+        }
+      }
+      if (drmSessionManager == null) {
+        onError(getContext().getString(errorStringId),
+                new IllegalStateException(getContext().getString(errorStringId)));
+        //finish(getContext().getString(errorStringId));
+        return;
+      }
+    }
+
+    // initialize track selection
+    TrackSelection.Factory trackSelectionFactory;
+    String abrAlgorithm = intent.getStringExtra(ABR_ALGORITHM_EXTRA);
+    if (abrAlgorithm == null || ABR_ALGORITHM_DEFAULT.equals(abrAlgorithm)) {
+      trackSelectionFactory = new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
+    } else if (ABR_ALGORITHM_RANDOM.equals(abrAlgorithm)) {
+      trackSelectionFactory = new RandomTrackSelection.Factory();
+    } else {
+      onError(getContext().getString(R.string.error_unrecognized_abr_algorithm),
+              new IllegalStateException(
+                      getContext().getString(R.string.error_unrecognized_abr_algorithm)));
+      //finish(getContext().getString(R.string.error_unrecognized_abr_algorithm));
+      return;
+    }
+
+    @DefaultRenderersFactory.ExtensionRendererMode int extensionRendererMode =
+            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
+    if (intent.hasExtra(PREFER_EXTENSION_DECODERS_EXTRA)) {
+      boolean preferExtensionDecoders =
+              intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
+      extensionRendererMode =
+              preferExtensionDecoders ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                      : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON;
+    }
+
+    DefaultRenderersFactory renderersFactory =
+            new DefaultRenderersFactory(getContext(), extensionRendererMode);
+
+    trackSelector = new DefaultTrackSelector(trackSelectionFactory);
+    trackSelector.setParameters(trackSelectorParameters);
+    lastSeenTrackGroupArray = null;
+
+    player = ExoPlayerFactory.newSimpleInstance(getContext(), renderersFactory, trackSelector,
+            getLoadControl(), drmSessionManager, BANDWIDTH_METER);
+    player.addListener(this);
+    player.setPlayWhenReady(startAutoPlay);
+    player.addAnalyticsListener(new EventLogger(trackSelector));
+    if (playerView != null) {
+      if (playerDependencies() instanceof CustomPlayerDependencies
+              && ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider() != null) {
+        playerView.setErrorMessageProvider(
+                ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider());
+      }
+      playerView.setPlayer(player);
+      playerView.setPlaybackPreparer(this);
+    }
+    if (debugTextView != null) {
+      debugViewHelper = new DebugTextViewHelper(player, debugTextView);
+      debugViewHelper.start();
+    }
+
+    MediaSource[] mediaSources = new MediaSource[uris.length];
+    for (int i = 0; i < uris.length; i++) {
+      mediaSources[i] =
+              playerDependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
+    }
+    mediaSource =
+            mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
+
+    // initialize AdsLoader
+    String adTagUriString = intent.getStringExtra(AD_TAG_URI_EXTRA);
+    if (adTagUriString != null && playerDependencies().adsMediaSourceBuilder() != null) {
+      Uri adTagUri = Uri.parse(adTagUriString);
+      if (!adTagUri.equals(loadedAdTagUri)) {
+        releaseAdsLoader();
+        loadedAdTagUri = adTagUri;
+      }
+      MediaSource adsMediaSource = playerDependencies().adsMediaSourceBuilder()
+              .createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
+      if (adsMediaSource != null) {
+        mediaSource = adsMediaSource;
+      } else {
+        onError(getContext().getString(R.string.ima_not_loaded),
+                new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
+      }
+    } else {
+      releaseAdsLoader();
+    }
   }
 
   @Override
