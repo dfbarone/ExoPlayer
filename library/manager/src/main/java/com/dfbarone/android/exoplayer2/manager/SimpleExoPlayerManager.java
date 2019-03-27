@@ -70,6 +70,7 @@ import com.dfbarone.android.exoplayer2.manager.R;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
+import java.util.UUID;
 
 /**
  * An class that plays media using {@link SimpleExoPlayer}.
@@ -91,6 +92,11 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   public static final String EXTENSION_LIST_EXTRA = "extension_list";
 
   public static final String DRM_SCHEME_EXTRA = "drm_scheme";
+  public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
+  public static final String DRM_KEY_REQUEST_PROPERTIES_EXTRA = "drm_key_request_properties";
+  public static final String DRM_MULTI_SESSION_EXTRA = "drm_multi_session";
+  // For backwards compatibility only.
+  private static final String DRM_SCHEME_UUID_EXTRA = "drm_scheme_uuid";
 
   public static final String PREFER_EXTENSION_DECODERS_EXTRA = "prefer_extension_decoders";
 
@@ -247,33 +253,43 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       }
     } else {
       onError(getContext().getString(R.string.unexpected_intent_action, action),
-              new IllegalStateException(
-                      getContext().getString(R.string.unexpected_intent_action, action)));
+          new IllegalStateException(
+              getContext().getString(R.string.unexpected_intent_action, action)));
       //finish(getContext().getString(R.string.unexpected_intent_action, action));
       return;
     }
 
     // initialize drm
     DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
-    if ((intent.hasExtra(DRM_SCHEME_EXTRA) &&
-            !TextUtils.isEmpty(intent.getStringExtra(DRM_SCHEME_EXTRA)))) {
+    if (intent.hasExtra(DRM_SCHEME_EXTRA) || intent.hasExtra(DRM_SCHEME_UUID_EXTRA)) {
       int errorStringId = R.string.error_drm_unknown;
       if (Util.SDK_INT < 18) {
         errorStringId = R.string.error_drm_not_supported;
       } else {
         try {
-          drmSessionManager =
-                  playerDependencies().drmSessionManagerBuilder().buildDrmSessionManager();
+          String drmLicenseUrl = intent.getStringExtra(DRM_LICENSE_URL_EXTRA);
+          String[] keyRequestPropertiesArray =
+              intent.getStringArrayExtra(DRM_KEY_REQUEST_PROPERTIES_EXTRA);
+          boolean multiSession = intent.getBooleanExtra(DRM_MULTI_SESSION_EXTRA, false);
+          String drmSchemeExtra =
+              intent.hasExtra(DRM_SCHEME_EXTRA) ? DRM_SCHEME_EXTRA : DRM_SCHEME_UUID_EXTRA;
+          UUID drmSchemeUuid = Util.getDrmUuid(intent.getStringExtra(drmSchemeExtra));
+          if (drmSchemeUuid != null) {
+            drmSessionManager =
+                playerDependencies().drmSessionManagerBuilder()
+                    .buildDrmSessionManagerV18(drmSchemeUuid, drmLicenseUrl,
+                        keyRequestPropertiesArray, multiSession);
+          }
         } catch (UnsupportedDrmException e) {
           errorStringId = e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME
-                  ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown;
+              ? R.string.error_drm_unsupported_scheme : R.string.error_drm_unknown;
         } catch (Exception e) {
 
         }
       }
       if (drmSessionManager == null) {
         onError(getContext().getString(errorStringId),
-                new IllegalStateException(getContext().getString(errorStringId)));
+            new IllegalStateException(getContext().getString(errorStringId)));
         //finish(getContext().getString(errorStringId));
         return;
       }
@@ -288,39 +304,39 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       trackSelectionFactory = new RandomTrackSelection.Factory();
     } else {
       onError(getContext().getString(R.string.error_unrecognized_abr_algorithm),
-              new IllegalStateException(
-                      getContext().getString(R.string.error_unrecognized_abr_algorithm)));
+          new IllegalStateException(
+              getContext().getString(R.string.error_unrecognized_abr_algorithm)));
       //finish(getContext().getString(R.string.error_unrecognized_abr_algorithm));
       return;
     }
 
     @DefaultRenderersFactory.ExtensionRendererMode int extensionRendererMode =
-            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
+        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
     if (intent.hasExtra(PREFER_EXTENSION_DECODERS_EXTRA)) {
       boolean preferExtensionDecoders =
-              intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
+          intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
       extensionRendererMode =
-              preferExtensionDecoders ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                      : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON;
+          preferExtensionDecoders ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+              : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON;
     }
 
     DefaultRenderersFactory renderersFactory =
-            new DefaultRenderersFactory(getContext(), extensionRendererMode);
+        new DefaultRenderersFactory(getContext(), extensionRendererMode);
 
     trackSelector = new DefaultTrackSelector(trackSelectionFactory);
     trackSelector.setParameters(trackSelectorParameters);
     lastSeenTrackGroupArray = null;
 
     player = ExoPlayerFactory.newSimpleInstance(getContext(), renderersFactory, trackSelector,
-            getLoadControl(), drmSessionManager, BANDWIDTH_METER);
+        getLoadControl(), drmSessionManager, BANDWIDTH_METER);
     player.addListener(this);
     player.setPlayWhenReady(startAutoPlay);
     player.addAnalyticsListener(new EventLogger(trackSelector));
     if (playerView != null) {
       if (playerDependencies() instanceof CustomPlayerDependencies
-              && ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider() != null) {
+          && ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider() != null) {
         playerView.setErrorMessageProvider(
-                ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider());
+            ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider());
       }
       playerView.setPlayer(player);
       playerView.setPlaybackPreparer(this);
@@ -333,10 +349,10 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     MediaSource[] mediaSources = new MediaSource[uris.length];
     for (int i = 0; i < uris.length; i++) {
       mediaSources[i] =
-              playerDependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
+          playerDependencies().mediaSourceBuilder().buildMediaSource(uris[i], extensions[i]);
     }
     mediaSource =
-            mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
+        mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
 
     // initialize AdsLoader
     String adTagUriString = intent.getStringExtra(AD_TAG_URI_EXTRA);
@@ -347,12 +363,12 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         loadedAdTagUri = adTagUri;
       }
       MediaSource adsMediaSource = playerDependencies().adsMediaSourceBuilder()
-              .createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
+          .createAdsMediaSource(mediaSource, Uri.parse(adTagUriString));
       if (adsMediaSource != null) {
         mediaSource = adsMediaSource;
       } else {
         onError(getContext().getString(R.string.ima_not_loaded),
-                new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
+            new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
       }
     } else {
       releaseAdsLoader();
@@ -381,9 +397,8 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
   @Override
   public void releaseMediaDrm() {
-    if (mediaDrm != null) {
-      mediaDrm.release();
-      mediaDrm = null;
+    if (playerDependencies().drmSessionManagerBuilder() != null) {
+      playerDependencies().drmSessionManagerBuilder().releaseMediaDrm();
     }
   }
 

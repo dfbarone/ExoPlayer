@@ -36,11 +36,6 @@ import java.util.UUID;
 
 public class DemoPlayerManager extends SimpleExoPlayerManager {
 
-  public static final String DRM_SCHEME_EXTRA = "drm_scheme";
-  public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
-  public static final String DRM_KEY_REQUEST_PROPERTIES_EXTRA = "drm_key_request_properties";
-  public static final String DRM_MULTI_SESSION_EXTRA = "drm_multi_session";
-
   public static final String SPHERICAL_STEREO_MODE_EXTRA = "spherical_stereo_mode";
   public static final String SPHERICAL_STEREO_MODE_MONO = "mono";
   public static final String SPHERICAL_STEREO_MODE_TOP_BOTTOM = "top_bottom";
@@ -98,21 +93,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
 
   private class DemoDrmSessionManagerBuilder implements DrmSessionManagerBuilder {
     @Override
-    public DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManager() throws UnsupportedDrmException {
-      Intent intent = getIntent();
-      String drmLicenseUrl = intent.getStringExtra(DRM_LICENSE_URL_EXTRA);
-      String[] keyRequestPropertiesArray = intent.getStringArrayExtra(DRM_KEY_REQUEST_PROPERTIES_EXTRA);
-      boolean multiSession = intent.getBooleanExtra(DRM_MULTI_SESSION_EXTRA, false);
-      String drmSchemeExtra = intent.hasExtra(DRM_SCHEME_EXTRA) ? DRM_SCHEME_EXTRA : DRM_SCHEME_UUID_EXTRA;
-      UUID drmSchemeUuid = Util.getDrmUuid(intent.getStringExtra(drmSchemeExtra));
-      if (drmSchemeUuid != null) {
-        return buildDrmSessionManagerV18(drmSchemeUuid, drmLicenseUrl, keyRequestPropertiesArray, multiSession);
-      } else {
-        return null;
-      }
-    }
-
-    private DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
+    public DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
         UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
         throws UnsupportedDrmException {
       HttpDataSource.Factory licenseDataSourceFactory =
@@ -130,6 +111,15 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
       return new DefaultDrmSessionManager<>(
           uuid, mediaDrm, drmCallback, null, multiSession);
     }
+
+    @Override
+    public void releaseMediaDrm() {
+      if (mediaDrm != null) {
+        mediaDrm.release();
+        mediaDrm = null;
+      }
+    }
+
   }
 
   private class DemoAdsMediaSourceBuilder implements AdsMediaSourceBuilder {

@@ -16,6 +16,7 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.util.ErrorMessageProvider;
+import java.util.UUID;
 
 /**
  * Created by dfbarone on 5/17/2018.
@@ -157,8 +158,11 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   /** Drm builder methods */
   public interface DrmSessionManagerBuilder {
-    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManager()
+    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
+        UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
         throws UnsupportedDrmException;
+
+     void releaseMediaDrm();
   }
 
   /** Ads builder methods */
