@@ -139,7 +139,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
     }
 
-    setPlayerDependencies(new CustomPlayerDependencies.Builder(new DefaultDataSourceBuilder(),
+    setPlayerDependencies(new SimplePlayerDependencies.Builder(new DefaultDataSourceBuilder(),
         new DefaultMediaSourceBuilder()).build());
 
     if (getView() != null) {
@@ -176,6 +176,11 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   public void setPlayerDependencies(PlayerDependencies dependencies) {
     super.setPlayerDependencies(dependencies);
     mediaDataSourceFactory = dependencies.dataSourceBuilder().buildDataSourceFactory();
+  }
+
+  @Override
+  public SimplePlayerDependencies playerDependencies() {
+    return (SimplePlayerDependencies) super.playerDependencies();
   }
 
   // Activity lifecycle
@@ -333,10 +338,9 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     player.setPlayWhenReady(startAutoPlay);
     player.addAnalyticsListener(new EventLogger(trackSelector));
     if (playerView != null) {
-      if (playerDependencies() instanceof CustomPlayerDependencies
-          && ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider() != null) {
+      if (playerDependencies().errorMessageProvider() != null) {
         playerView.setErrorMessageProvider(
-            ((CustomPlayerDependencies) playerDependencies()).errorMessageProvider());
+            playerDependencies().errorMessageProvider());
       }
       playerView.setPlayer(player);
       playerView.setPlaybackPreparer(this);
@@ -490,9 +494,8 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   }
 
   public LoadControl getLoadControl() {
-    if (playerDependencies() instanceof CustomPlayerDependencies &&
-        ((CustomPlayerDependencies) playerDependencies()).loadControl() != null) {
-      return ((CustomPlayerDependencies) playerDependencies()).loadControl();
+    if (playerDependencies().loadControl() != null) {
+      return playerDependencies().loadControl();
     } else {
       return new DefaultLoadControl();
     }
@@ -530,13 +533,13 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   }
 
   // Extend base initializePlayer() method dependency builder
-  public static class CustomPlayerDependencies<B extends CustomPlayerDependencies.Builder<B>>
+  public static class SimplePlayerDependencies<B extends SimplePlayerDependencies.Builder<B>>
       extends PlayerDependencies<B> {
 
     private LoadControl loadControl;
     private ErrorMessageProvider errorMessageProvider;
 
-    public CustomPlayerDependencies(Builder<B> builder) {
+    public SimplePlayerDependencies(Builder<B> builder) {
       super(builder);
       this.loadControl = builder.loadControl;
       this.errorMessageProvider = builder.errorMessageProvider;
@@ -570,8 +573,8 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         return (T) this;
       }
 
-      public CustomPlayerDependencies build() {
-        return new CustomPlayerDependencies(this);
+      public SimplePlayerDependencies build() {
+        return new SimplePlayerDependencies(this);
       }
     }
   }

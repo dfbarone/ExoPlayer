@@ -49,7 +49,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
 
     /* Customizations in intializePlayer */
     setPlayerDependencies(
-        new CustomPlayerDependencies.Builder(
+        new SimplePlayerDependencies.Builder(
             new DemoDataSourceBuilder(),
             new DefaultMediaSourceBuilder()
         )

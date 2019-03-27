@@ -162,7 +162,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
         UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
         throws UnsupportedDrmException;
 
-     void releaseMediaDrm();
+    void releaseMediaDrm();
   }
 
   /** Ads builder methods */
