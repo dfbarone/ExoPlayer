@@ -57,6 +57,8 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   protected abstract void releasePlayer();
 
+  protected abstract void releaseMediaDrm();
+
   protected abstract void releaseAdsLoader();
 
   /** Getters/Setters */

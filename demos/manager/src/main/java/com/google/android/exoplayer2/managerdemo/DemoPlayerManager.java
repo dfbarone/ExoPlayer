@@ -125,22 +125,16 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
               keyRequestPropertiesArray[i + 1]);
         }
       }
+      releaseMediaDrm();
+      mediaDrm = FrameworkMediaDrm.newInstance(uuid);
       return new DefaultDrmSessionManager<>(
-          uuid, FrameworkMediaDrm.newInstance(uuid), drmCallback, null, multiSession);
+          uuid, mediaDrm, drmCallback, null, multiSession);
     }
   }
 
   private class DemoAdsMediaSourceBuilder implements AdsMediaSourceBuilder {
-    // Fields used only for ad playback. The ads loader is loaded via reflection.
-    protected AdsLoader adsLoader;
-    protected ViewGroup adUiViewGroup;
-
-    /**
-     * Returns an ads media source, reusing the ads loader if one exists.
-     */
-    @Override
-    public @Nullable
-    MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
+    /** Returns an ads media source, reusing the ads loader if one exists. */
+    public @Nullable MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
       // Load the extension source using reflection so the demo app doesn't have to depend on it.
       // The ads loader is reused for multiple playbacks, so that ad playback can resume.
       try {
@@ -149,30 +143,26 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
           // Full class names used so the LINT.IfChange rule triggers should any of the classes move.
           // LINT.IfChange
           Constructor<? extends AdsLoader> loaderConstructor =
-              loaderClass
-                  .asSubclass(AdsLoader.class)
-                  .getConstructor(Context.class, Uri.class);
+                  loaderClass
+                          .asSubclass(AdsLoader.class)
+                          .getConstructor(android.content.Context.class, android.net.Uri.class);
           // LINT.ThenChange(../../../../../../../../proguard-rules.txt)
-          adsLoader = loaderConstructor.newInstance(this, adTagUri);
-          adUiViewGroup = new FrameLayout(/*this*/getContext());
-          // The demo app has a non-null overlay frame layout.
-          if (playerView != null) {
-            playerView.getOverlayFrameLayout().addView(adUiViewGroup);
-          }
+          adsLoader = loaderConstructor.newInstance(getContext(), adTagUri);
         }
+        adsLoader.setPlayer(player);
         AdsMediaSource.MediaSourceFactory adMediaSourceFactory =
-            new AdsMediaSource.MediaSourceFactory() {
-              @Override
-              public MediaSource createMediaSource(Uri uri) {
-                return playerDependencies().mediaSourceBuilder().buildMediaSource(uri);
-              }
+                new AdsMediaSource.MediaSourceFactory() {
+                  @Override
+                  public MediaSource createMediaSource(Uri uri) {
+                    return playerDependencies().mediaSourceBuilder().buildMediaSource(uri);
+                  }
 
-              @Override
-              public int[] getSupportedTypes() {
-                return new int[]{C.TYPE_DASH, C.TYPE_SS, C.TYPE_HLS, C.TYPE_OTHER};
-              }
-            };
-        return new AdsMediaSource(mediaSource, adMediaSourceFactory, adsLoader, adUiViewGroup);
+                  @Override
+                  public int[] getSupportedTypes() {
+                    return new int[] {C.TYPE_DASH, C.TYPE_SS, C.TYPE_HLS, C.TYPE_OTHER};
+                  }
+                };
+        return new AdsMediaSource(mediaSource, adMediaSourceFactory, adsLoader, playerView);
       } catch (ClassNotFoundException e) {
         // IMA extension not loaded.
         return null;

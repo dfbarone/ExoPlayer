@@ -38,12 +38,14 @@ import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
+import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
 import com.dfbarone.android.exoplayer2.manager.util.PlayerUtils;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
@@ -105,10 +107,12 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
   // core
   protected SimpleExoPlayer player;
+  protected FrameworkMediaDrm mediaDrm;
   protected MediaSource mediaSource;
   protected DebugTextViewHelper debugViewHelper;
 
   // Fields used only for ad playback. The ads loader is loaded via reflection.
+  protected AdsLoader adsLoader;
   protected Uri loadedAdTagUri;
 
   // HTTP and DataSource variables
@@ -368,6 +372,18 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       player = null;
       mediaSource = null;
       trackSelector = null;
+    }
+    if (adsLoader != null) {
+      adsLoader.setPlayer(null);
+    }
+    releaseMediaDrm();
+  }
+
+  @Override
+  public void releaseMediaDrm() {
+    if (mediaDrm != null) {
+      mediaDrm.release();
+      mediaDrm = null;
     }
   }
 
