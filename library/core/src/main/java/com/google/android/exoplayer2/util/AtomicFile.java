@@ -15,7 +15,7 @@
  */
 package com.google.android.exoplayer2.util;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,6 +50,11 @@ public final class AtomicFile {
   public AtomicFile(File baseName) {
     this.baseName = baseName;
     backupName = new File(baseName.getPath() + ".bak");
+  }
+
+  /** Returns whether the file or its backup exists. */
+  public boolean exists() {
+    return baseName.exists() || backupName.exists();
   }
 
   /** Delete the atomic file. This deletes both the base and backup files. */
@@ -103,8 +108,9 @@ public final class AtomicFile {
     } catch (FileNotFoundException e) {
       File parent = baseName.getParentFile();
       if (parent == null || !parent.mkdirs()) {
-        throw new IOException("Couldn't create directory " + baseName, e);
+        throw new IOException("Couldn't create " + baseName, e);
       }
+      // Try again now that we've created the parent directory.
       try {
         str = new AtomicFileOutputStream(baseName);
       } catch (FileNotFoundException e2) {

@@ -17,7 +17,7 @@ package com.google.android.exoplayer2.text;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.support.annotation.IntDef;
+import androidx.annotation.IntDef;
 import android.text.Layout.Alignment;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -28,10 +28,12 @@ import java.lang.annotation.RetentionPolicy;
  */
 public class Cue {
 
-  /**
-   * An unset position or width.
-   */
-  public static final float DIMEN_UNSET = Float.MIN_VALUE;
+  /** The empty cue. */
+  public static final Cue EMPTY = new Cue("");
+
+  /** An unset position or width. */
+  // Note: We deliberately don't use Float.MIN_VALUE because it's positive & very close to zero.
+  public static final float DIMEN_UNSET = -Float.MAX_VALUE;
 
   /**
    * The type of anchor, which may be unset. One of {@link #TYPE_UNSET}, {@link #ANCHOR_TYPE_START},

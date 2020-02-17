@@ -17,11 +17,11 @@ package com.google.android.exoplayer2.ext.leanback;
 
 import android.content.Context;
 import android.os.Handler;
-import android.support.annotation.Nullable;
-import android.support.v17.leanback.R;
-import android.support.v17.leanback.media.PlaybackGlueHost;
-import android.support.v17.leanback.media.PlayerAdapter;
-import android.support.v17.leanback.media.SurfaceHolderGlueHost;
+import androidx.annotation.Nullable;
+import androidx.leanback.R;
+import androidx.leanback.media.PlaybackGlueHost;
+import androidx.leanback.media.PlayerAdapter;
+import androidx.leanback.media.SurfaceHolderGlueHost;
 import android.util.Pair;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -308,7 +308,11 @@ public final class LeanbackPlayerAdapter extends PlayerAdapter implements Runnab
     @Override
     public void onVideoSizeChanged(
         int width, int height, int unappliedRotationDegrees, float pixelWidthHeightRatio) {
-      getCallback().onVideoSizeChanged(LeanbackPlayerAdapter.this, width, height);
+      // There's no way to pass pixelWidthHeightRatio to leanback, so we scale the width that we
+      // pass to take it into account. This is necessary to ensure that leanback uses the correct
+      // aspect ratio when playing content with non-square pixels.
+      int scaledWidth = Math.round(width * pixelWidthHeightRatio);
+      getCallback().onVideoSizeChanged(LeanbackPlayerAdapter.this, scaledWidth, height);
     }
 
     @Override

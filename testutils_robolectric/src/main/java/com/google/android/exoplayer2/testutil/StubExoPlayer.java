@@ -80,6 +80,12 @@ public abstract class StubExoPlayer extends BasePlayer implements ExoPlayer {
   }
 
   @Override
+  @PlaybackSuppressionReason
+  public int getPlaybackSuppressionReason() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public ExoPlaybackException getPlaybackError() {
     throw new UnsupportedOperationException();
   }
@@ -270,6 +276,11 @@ public abstract class StubExoPlayer extends BasePlayer implements ExoPlayer {
 
   @Override
   public long getContentBufferedPosition() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setForegroundMode(boolean foregroundMode) {
     throw new UnsupportedOperationException();
   }
 }

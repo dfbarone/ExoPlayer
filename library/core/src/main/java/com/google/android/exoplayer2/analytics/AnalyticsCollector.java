@@ -15,13 +15,14 @@
  */
 package com.google.android.exoplayer2.analytics;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.Surface;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Player.PlaybackSuppressionReason;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.Timeline.Period;
 import com.google.android.exoplayer2.Timeline.Window;
@@ -129,12 +130,13 @@ public class AnalyticsCollector
 
   /**
    * Sets the player for which data will be collected. Must only be called if no player has been set
-   * yet.
+   * yet or the current player is idle.
    *
    * @param player The {@link Player} for which data will be collected.
    */
   public void setPlayer(Player player) {
-    Assertions.checkState(this.player == null);
+    Assertions.checkState(
+        this.player == null || mediaPeriodQueueTracker.mediaPeriodInfoQueue.isEmpty());
     this.player = Assertions.checkNotNull(player);
   }
 
@@ -467,6 +469,23 @@ public class AnalyticsCollector
     EventTime eventTime = generatePlayingMediaPeriodEventTime();
     for (AnalyticsListener listener : listeners) {
       listener.onPlayerStateChanged(eventTime, playWhenReady, playbackState);
+    }
+  }
+
+  @Override
+  public void onPlaybackSuppressionReasonChanged(
+      @PlaybackSuppressionReason int playbackSuppressionReason) {
+    EventTime eventTime = generatePlayingMediaPeriodEventTime();
+    for (AnalyticsListener listener : listeners) {
+      listener.onPlaybackSuppressionReasonChanged(eventTime, playbackSuppressionReason);
+    }
+  }
+
+  @Override
+  public void onIsPlayingChanged(boolean isPlaying) {
+    EventTime eventTime = generatePlayingMediaPeriodEventTime();
+    for (AnalyticsListener listener : listeners) {
+      listener.onIsPlayingChanged(eventTime, isPlaying);
     }
   }
 

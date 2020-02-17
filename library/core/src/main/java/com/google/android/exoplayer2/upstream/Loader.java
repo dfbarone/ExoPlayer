@@ -20,8 +20,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-import android.support.annotation.IntDef;
-import android.support.annotation.Nullable;
+import androidx.annotation.IntDef;
+import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Log;
@@ -211,6 +211,19 @@ public final class Loader implements LoaderErrorThrower {
     return new LoadErrorAction(
         resetErrorCount ? ACTION_TYPE_RETRY_AND_RESET_ERROR_COUNT : ACTION_TYPE_RETRY,
         retryDelayMillis);
+  }
+
+  /**
+   * Whether the last call to {@link #startLoading} resulted in a fatal error. Calling {@link
+   * #maybeThrowError()} will throw the fatal error.
+   */
+  public boolean hasFatalError() {
+    return fatalError != null;
+  }
+
+  /** Clears any stored fatal error. */
+  public void clearFatalError() {
+    fatalError = null;
   }
 
   /**

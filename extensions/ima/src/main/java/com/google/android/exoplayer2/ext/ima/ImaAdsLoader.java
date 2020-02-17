@@ -19,8 +19,9 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.support.annotation.IntDef;
-import android.support.annotation.Nullable;
+import androidx.annotation.IntDef;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import android.view.View;
 import android.view.ViewGroup;
 import com.google.ads.interactivemedia.v3.api.Ad;
@@ -216,7 +217,7 @@ public final class ImaAdsLoader
       return this;
     }
 
-    // @VisibleForTesting
+    @VisibleForTesting
     /* package */ Builder setImaFactory(ImaFactory imaFactory) {
       this.imaFactory = Assertions.checkNotNull(imaFactory);
       return this;
@@ -326,6 +327,7 @@ public final class ImaAdsLoader
   private final AdDisplayContainer adDisplayContainer;
   private final com.google.ads.interactivemedia.v3.api.AdsLoader adsLoader;
 
+  private boolean wasSetPlayerCalled;
   @Nullable private Player nextPlayer;
   private Object pendingAdRequestContext;
   private List<String> supportedMimeTypes;
@@ -336,6 +338,7 @@ public final class ImaAdsLoader
   private int lastVolumePercentage;
 
   private AdsManager adsManager;
+  private boolean initializedAdsManager;
   private AdLoadException pendingAdLoadError;
   private Timeline timeline;
   private long contentDurationMs;
@@ -482,6 +485,7 @@ public final class ImaAdsLoader
     pendingContentPositionMs = C.TIME_UNSET;
     adGroupIndex = C.INDEX_UNSET;
     contentDurationMs = C.TIME_UNSET;
+    timeline = Timeline.EMPTY;
   }
 
   /**
@@ -557,6 +561,7 @@ public final class ImaAdsLoader
     Assertions.checkState(
         player == null || player.getApplicationLooper() == Looper.getMainLooper());
     nextPlayer = player;
+    wasSetPlayerCalled = true;
   }
 
   @Override
@@ -584,9 +589,12 @@ public final class ImaAdsLoader
 
   @Override
   public void start(EventListener eventListener, AdViewProvider adViewProvider) {
-    Assertions.checkNotNull(
-        nextPlayer, "Set player using adsLoader.setPlayer before preparing the player.");
+    Assertions.checkState(
+        wasSetPlayerCalled, "Set player using adsLoader.setPlayer before preparing the player.");
     player = nextPlayer;
+    if (player == null) {
+      return;
+    }
     this.eventListener = eventListener;
     lastVolumePercentage = 0;
     lastAdProgress = null;
@@ -606,8 +614,8 @@ public final class ImaAdsLoader
         adsManager.resume();
       }
     } else if (adsManager != null) {
-      // Ads have loaded but the ads manager is not initialized.
-      startAdPlayback();
+      adPlaybackState = new AdPlaybackState(getAdGroupTimesUs(adsManager.getAdCuePoints()));
+      updateAdPlaybackState();
     } else {
       // Ads haven't loaded yet, so request them.
       requestAds(adViewGroup);
@@ -616,6 +624,9 @@ public final class ImaAdsLoader
 
   @Override
   public void stop() {
+    if (player == null) {
+      return;
+    }
     if (adsManager != null && imaPausedContent) {
       adPlaybackState =
           adPlaybackState.withAdResumePositionUs(
@@ -678,7 +689,8 @@ public final class ImaAdsLoader
     if (player != null) {
       // If a player is attached already, start playback immediately.
       try {
-        startAdPlayback();
+        adPlaybackState = new AdPlaybackState(getAdGroupTimesUs(adsManager.getAdCuePoints()));
+        updateAdPlaybackState();
       } catch (Exception e) {
         maybeNotifyInternalError("onAdsManagerLoaded", e);
       }
@@ -755,7 +767,8 @@ public final class ImaAdsLoader
       // until MAXIMUM_PRELOAD_DURATION_MS before the ad so that an ad group load error delivered
       // just after an ad group isn't incorrectly attributed to the next ad group.
       int nextAdGroupIndex =
-          adPlaybackState.getAdGroupIndexAfterPositionUs(C.msToUs(contentPositionMs));
+          adPlaybackState.getAdGroupIndexAfterPositionUs(
+              C.msToUs(contentPositionMs), C.msToUs(contentDurationMs));
       if (nextAdGroupIndex != expectedAdGroupIndex && nextAdGroupIndex != C.INDEX_UNSET) {
         long nextAdGroupTimeMs = C.usToMs(adPlaybackState.adGroupTimesUs[nextAdGroupIndex]);
         if (nextAdGroupTimeMs == C.TIME_END_OF_SOURCE) {
@@ -946,8 +959,8 @@ public final class ImaAdsLoader
   @Override
   public void onTimelineChanged(
       Timeline timeline, @Nullable Object manifest, @Player.TimelineChangeReason int reason) {
-    if (reason == Player.TIMELINE_CHANGE_REASON_RESET) {
-      // The player is being reset and this source will be released.
+    if (timeline.isEmpty()) {
+      // The player is being reset or contains no media.
       return;
     }
     Assertions.checkArgument(timeline.getPeriodCount() == 1);
@@ -957,7 +970,11 @@ public final class ImaAdsLoader
     if (contentDurationUs != C.TIME_UNSET) {
       adPlaybackState = adPlaybackState.withContentDurationUs(contentDurationUs);
     }
-    updateImaStateForPlayerState();
+    if (!initializedAdsManager && adsManager != null) {
+      initializedAdsManager = true;
+      initializeAdsManager();
+    }
+    onPositionDiscontinuity(Player.DISCONTINUITY_REASON_INTERNAL);
   }
 
   @Override
@@ -1012,7 +1029,7 @@ public final class ImaAdsLoader
           }
         }
         updateAdPlaybackState();
-      } else {
+      } else if (!timeline.isEmpty()) {
         long positionMs = player.getCurrentPosition();
         timeline.getPeriod(0, period);
         int newAdGroupIndex = period.getAdGroupIndexForPositionUs(C.msToUs(positionMs));
@@ -1024,14 +1041,13 @@ public final class ImaAdsLoader
           }
         }
       }
-    } else {
-      updateImaStateForPlayerState();
     }
+    updateImaStateForPlayerState();
   }
 
   // Internal methods.
 
-  private void startAdPlayback() {
+  private void initializeAdsManager() {
     AdsRenderingSettings adsRenderingSettings = imaFactory.createAdsRenderingSettings();
     adsRenderingSettings.setEnablePreloading(ENABLE_PRELOADING);
     adsRenderingSettings.setMimeTypes(supportedMimeTypes);
@@ -1046,19 +1062,13 @@ public final class ImaAdsLoader
       adsRenderingSettings.setUiElements(adUiElements);
     }
 
-    // Set up the ad playback state, skipping ads based on the start position as required.
+    // Skip ads based on the start position as required.
     long[] adGroupTimesUs = getAdGroupTimesUs(adsManager.getAdCuePoints());
-    adPlaybackState = new AdPlaybackState(adGroupTimesUs);
-    long contentPositionMs = player.getCurrentPosition();
+    long contentPositionMs = player.getContentPosition();
     int adGroupIndexForPosition =
         adPlaybackState.getAdGroupIndexForPositionUs(C.msToUs(contentPositionMs));
-    if (adGroupIndexForPosition == 0) {
-      podIndexOffset = 0;
-    } else if (adGroupIndexForPosition == C.INDEX_UNSET) {
-      // There is no preroll and midroll pod indices start at 1.
-      podIndexOffset = -1;
-    } else /* adGroupIndexForPosition > 0 */ {
-      // Skip ad groups before the one at or immediately before the playback position.
+    if (adGroupIndexForPosition > 0 && adGroupIndexForPosition != C.INDEX_UNSET) {
+      // Skip any ad groups before the one at or immediately before the playback position.
       for (int i = 0; i < adGroupIndexForPosition; i++) {
         adPlaybackState = adPlaybackState.withSkippedAdGroup(i);
       }
@@ -1068,9 +1078,18 @@ public final class ImaAdsLoader
       long adGroupBeforeTimeUs = adGroupTimesUs[adGroupIndexForPosition - 1];
       double midpointTimeUs = (adGroupForPositionTimeUs + adGroupBeforeTimeUs) / 2d;
       adsRenderingSettings.setPlayAdsAfterTime(midpointTimeUs / C.MICROS_PER_SECOND);
+    }
 
-      // We're removing one or more ads, which means that the earliest ad (if any) will be a
-      // midroll/postroll. Midroll pod indices start at 1.
+    // IMA indexes any remaining midroll ad pods from 1. A preroll (if present) has index 0.
+    // Store an index offset as we want to index all ads (including skipped ones) from 0.
+    if (adGroupIndexForPosition == 0 && adGroupTimesUs[0] == 0) {
+      // We are playing a preroll.
+      podIndexOffset = 0;
+    } else if (adGroupIndexForPosition == C.INDEX_UNSET) {
+      // There's no ad to play which means there's no preroll.
+      podIndexOffset = -1;
+    } else {
+      // We are playing a midroll and any ads before it were skipped.
       podIndexOffset = adGroupIndexForPosition - 1;
     }
 
@@ -1079,7 +1098,6 @@ public final class ImaAdsLoader
       pendingContentPositionMs = contentPositionMs;
     }
 
-    // Start ad playback.
     adsManager.init(adsRenderingSettings);
     updateAdPlaybackState();
     if (DEBUG) {
@@ -1389,7 +1407,7 @@ public final class ImaAdsLoader
   }
 
   /** Factory for objects provided by the IMA SDK. */
-  // @VisibleForTesting
+  @VisibleForTesting
   /* package */ interface ImaFactory {
     /** @see ImaSdkSettings */
     ImaSdkSettings createImaSdkSettings();

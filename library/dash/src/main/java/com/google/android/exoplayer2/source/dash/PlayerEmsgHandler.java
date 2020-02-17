@@ -19,7 +19,7 @@ import static com.google.android.exoplayer2.util.Util.parseXsDateTime;
 
 import android.os.Handler;
 import android.os.Message;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.FormatHolder;
@@ -121,7 +121,7 @@ public final class PlayerEmsgHandler implements Handler.Callback {
     removePreviouslyExpiredManifestPublishTimeValues();
   }
 
-  /* package*/ boolean maybeRefreshManifestBeforeLoadingNextChunk(long presentationPositionUs) {
+  /* package */ boolean maybeRefreshManifestBeforeLoadingNextChunk(long presentationPositionUs) {
     if (!manifest.dynamic) {
       return false;
     }
@@ -360,6 +360,9 @@ public final class PlayerEmsgHandler implements Handler.Callback {
         }
         long eventTimeUs = inputBuffer.timeUs;
         Metadata metadata = decoder.decode(inputBuffer);
+        if (metadata == null) {
+          continue;
+        }
         EventMessage eventMessage = (EventMessage) metadata.get(0);
         if (isPlayerEmsgEvent(eventMessage.schemeIdUri, eventMessage.value)) {
           parsePlayerEmsgEvent(eventTimeUs, eventMessage);
