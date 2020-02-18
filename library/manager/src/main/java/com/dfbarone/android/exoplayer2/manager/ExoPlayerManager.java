@@ -10,6 +10,7 @@ import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.PlaybackPreparer;
 import com.google.android.exoplayer2.Player;
 import com.dfbarone.android.exoplayer2.manager.util.PlayerUtils;
+import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
@@ -43,6 +44,9 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
     super(context, root);
   }
 
+  @Override
+  protected abstract SimpleExoPlayer getPlayer();
+
   public void setDebug(boolean debug) {
     mDebug = debug;
   }
@@ -54,6 +58,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
   // Lifecycle methods
   public void onNewIntent(Intent intent) {
     releasePlayer();
+    releaseAdsLoader();
     clearStartPosition();
     setIntent(intent);
   }
@@ -102,14 +107,16 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
   }
 
   // UI methods
-  protected abstract void updateButtonVisibilities();
+  protected abstract void updateButtonVisibility();
 
   protected abstract void showControls();
 
   // PlaybackControlView.PlaybackPreparer implementation
   @Override
   public void preparePlayback() {
-    initializePlayer();
+    if (getPlayer() != null) {
+      getPlayer().retry();
+    }
   }
 
   // PlayerControlView.VisibilityListener implementation
@@ -122,16 +129,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
     if (playbackState == Player.STATE_ENDED) {
       showControls();
     }
-    updateButtonVisibilities();
-  }
-
-  @Override
-  public void onPositionDiscontinuity(@Player.DiscontinuityReason int reason) {
-    if (getPlayer().getPlaybackError() != null) {
-      // The user has performed a seek whilst in the error state. Update the resume position so
-      // that if the user then retries, playback resumes from the position to which they seeked.
-      updateStartPosition();
-    }
+    updateButtonVisibility();
   }
 
   @Override
@@ -140,8 +138,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
       clearStartPosition();
       initializePlayer();
     } else {
-      updateStartPosition();
-      updateButtonVisibilities();
+      updateButtonVisibility();
       showControls();
     }
     onError("onPlayerError", e);
@@ -150,6 +147,6 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
   @Override
   @SuppressWarnings("ReferenceEquality")
   public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-    updateButtonVisibilities();
+    updateButtonVisibility();
   }
 }

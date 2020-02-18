@@ -1,7 +1,7 @@
 package com.dfbarone.android.exoplayer2.manager.util;
 
 import android.net.Uri;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.View;
 
 import com.google.android.exoplayer2.C;

@@ -15,12 +15,14 @@
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.google.android.exoplayer2.managerdemo">
 
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
   <uses-feature android:name="android.software.leanback" android:required="false"/>
   <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
@@ -32,11 +34,13 @@
       android:banner="@drawable/ic_banner"
       android:largeHeap="true"
       android:allowBackup="false"
-      android:name="com.google.android.exoplayer2.managerdemo.DemoApplication">
+      android:name="com.google.android.exoplayer2.managerdemo.DemoApplication"
+      tools:ignore="UnusedAttribute">
 
     <activity android:name="com.google.android.exoplayer2.managerdemo.SampleChooserActivity"
         android:configChanges="keyboardHidden"
-        android:label="@string/application_name">
+        android:label="@string/application_name"
+        android:theme="@style/Theme.AppCompat">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -79,7 +83,7 @@
     <service android:name="com.google.android.exoplayer2.managerdemo.DemoDownloadService"
         android:exported="false">
       <intent-filter>
-        <action android:name="com.google.android.exoplayer.downloadService.action.INIT"/>
+        <action android:name="com.google.android.exoplayer.downloadService.action.RESTART"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
     </service>

@@ -18,17 +18,18 @@ package com.google.android.exoplayer2.managerdemo;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.dfbarone.android.exoplayer2.manager.PlayerManager;
 import com.google.android.exoplayer2.util.Util;
 
 /** An activity that plays media using {@link DemoPlayerManager}. */
-public class PlayerActivity extends Activity
+public class PlayerActivity extends AppCompatActivity
     implements PlayerManager.EventListener {
 
   private static final String TAG = PlayerActivity.class.getSimpleName();
@@ -58,14 +59,20 @@ public class PlayerActivity extends Activity
     super.onStart();
     if (Util.SDK_INT > 23) {
       playerManager.initializePlayer();
+      if (playerManager.getPlayerView() != null) {
+        playerManager.getPlayerView().onResume();
+      }
     }
   }
 
   @Override
   public void onResume() {
     super.onResume();
-    if (Util.SDK_INT <= 23) {
+    if (Util.SDK_INT <= 23 || playerManager.getPlayer() == null) {
       playerManager.initializePlayer();
+      if (playerManager.getPlayerView() != null) {
+        playerManager.getPlayerView().onResume();
+      }
     }
   }
 
@@ -73,6 +80,9 @@ public class PlayerActivity extends Activity
   public void onPause() {
     super.onPause();
     if (Util.SDK_INT <= 23) {
+      if (playerManager.getPlayerView() != null) {
+        playerManager.getPlayerView().onPause();
+      }
       playerManager.releasePlayer();
     }
   }
@@ -81,6 +91,9 @@ public class PlayerActivity extends Activity
   public void onStop() {
     super.onStop();
     if (Util.SDK_INT > 23) {
+      if (playerManager.getPlayerView() != null) {
+        playerManager.getPlayerView().onPause();
+      }
       playerManager.releasePlayer();
     }
   }
@@ -88,7 +101,6 @@ public class PlayerActivity extends Activity
   @Override
   public void onDestroy() {
     super.onDestroy();
-    playerManager.releasePlayer();
     playerManager.releaseAdsLoader();
   }
 
@@ -113,17 +125,19 @@ public class PlayerActivity extends Activity
   // ExoPlayerWrapper.EventListener
   @Override
   public void onError(String message, Exception e) {
-    if (e != null) {
-      Log.d(TAG, "onError() " + message);
-      Toast.makeText(this, message, Toast.LENGTH_LONG);
+    Log.d(TAG, "onError() " + message);
+    Toast.makeText(this, message, Toast.LENGTH_LONG);
+
+    // Initialization error. finish.
+    if (e instanceof IllegalStateException) {
+      finish();
     }
   }
 
   @Override
   public void onFinish() {
     Log.d(TAG, "onFinish()");
-    // user attempt to close
-    super.finish();
+    finish();
   }
 
 }

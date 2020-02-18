@@ -3,7 +3,7 @@ package com.dfbarone.android.exoplayer2.manager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.View;
 
 import com.google.android.exoplayer2.LoadControl;
@@ -12,6 +12,7 @@ import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
@@ -21,14 +22,13 @@ import java.util.UUID;
 /**
  * Created by dfbarone on 5/17/2018.
  * <p>
- * A class to enforce common and hopefully useful ExoPlayer methods.
- * This class attempts to avoid ui or state methods.
+ * A class to enforce common and hopefully useful ExoPlayer methods. This class attempts to avoid ui
+ * or state methods.
  */
 public abstract class PlayerManager<D> implements Player.EventListener {
 
   // Injected interfaces
   private EventListener eventListener;
-  private PlayerDependencies dependencies;
 
   // Context and root View of player
   private final Context mContext;
@@ -42,7 +42,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   // an intent.
   private D mData = null;
 
-  /** Default constructor */
+  /*** Default constructor*/
   protected PlayerManager(Context context, View itemView) {
     if (context == null) {
       throw new IllegalArgumentException("context may not be null");
@@ -51,8 +51,10 @@ public abstract class PlayerManager<D> implements Player.EventListener {
     this.itemView = itemView;
   }
 
-  /** Common player methods */
-  protected abstract <T extends Player> T getPlayer();
+  /*** Common player methods */
+  protected abstract <P extends Player> P getPlayer();
+
+  protected abstract <V extends PlayerView> V getPlayerView();
 
   protected abstract void initializePlayer();
 
@@ -62,7 +64,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   protected abstract void releaseAdsLoader();
 
-  /** Getters/Setters */
+  /*** Getters/Setters */
   public Context getContext() {
     return mContext;
   }
@@ -95,12 +97,13 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   }
 
   // Event listener methods
+
+  /*** Notify parent of non-fatal error */
   protected void onError(String message) {
-    if (eventListener != null) {
-      eventListener.onError(message, null);
-    }
+    onError(message, null);
   }
 
+  /*** Notify parent of potentially fatal error. IllegalStateException is a fatal error in initializePlayer(). */
   protected void onError(String message, Exception e) {
     if (eventListener != null) {
       eventListener.onError(message, e);
@@ -113,42 +116,29 @@ public abstract class PlayerManager<D> implements Player.EventListener {
     }
   }
 
-  public <T extends PlayerDependencies> T playerDependencies() {
-    return (T) dependencies;
-  }
-
-  public void setPlayerDependencies(PlayerDependencies dependencies) {
-    this.dependencies = dependencies;
-  }
-
-  /**
-   * PlayerManager Dependencies
-   */
+  /*** PlayerManager Dependencies*/
   public interface EventListener {
 
-    /**
-     * Initialization errors for output
-     *
-     * @param message non player related error
-     * @param e ExoPlayerException, if valid will be a player related error
+    /***
+     * Notify parent of potentially fatal error. IllegalStateException is a fatal error in
+     * initializePlayer().
      */
     void onError(String message, Exception e);
 
-    /**
-     * User attempt to close player
-     */
     void onFinish();
   }
 
-  /** MediaSource builder methods */
+  /*** MediaSource builder methods */
   public interface MediaSourceBuilder {
+
     MediaSource buildMediaSource(Uri uri);
 
     MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension);
   }
 
-  /** DataSource.Factory builder methods */
+  /*** DataSource.Factory builder methods */
   public interface DataSourceBuilder {
+
     /*** Returns a {@link DataSource.Factory}.*/
     DataSource.Factory buildDataSourceFactory();
 
@@ -156,8 +146,9 @@ public abstract class PlayerManager<D> implements Player.EventListener {
     HttpDataSource.Factory buildHttpDataSourceFactory();
   }
 
-  /** Drm builder methods */
+  /*** Drm builder methods */
   public interface DrmSessionManagerBuilder {
+
     DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
         UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
         throws UnsupportedDrmException;
@@ -165,83 +156,11 @@ public abstract class PlayerManager<D> implements Player.EventListener {
     void releaseMediaDrm();
   }
 
-  /** Ads builder methods */
+  /*** Ads builder methods */
   public interface AdsMediaSourceBuilder {
+
     MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri);
 
     void releaseAdsLoader();
-  }
-
-  /** Main initializer builder class */
-  public static class PlayerDependencies<T extends PlayerDependencies.Builder<T>> {
-
-    private DataSourceBuilder dataSourceBuilder;
-    private MediaSourceBuilder mediaSourceBuilder;
-    private DrmSessionManagerBuilder drmSessionManagerBuilder;
-    private AdsMediaSourceBuilder adsMediaSourceBuilder;
-
-    public PlayerDependencies(Builder<T> builder) {
-      this.dataSourceBuilder = builder.dataSourceBuilder;
-      this.mediaSourceBuilder = builder.mediaSourceBuilder;
-      this.drmSessionManagerBuilder = builder.drmSessionManagerBuilder;
-      this.adsMediaSourceBuilder = builder.adsMediaSourceBuilder;
-    }
-
-    /*** Required dependency*/
-    public DataSourceBuilder dataSourceBuilder() {
-      return dataSourceBuilder;
-    }
-
-    /*** Required dependency*/
-    public MediaSourceBuilder mediaSourceBuilder() {
-      return mediaSourceBuilder;
-    }
-
-    /*** Optional dependency*/
-    public DrmSessionManagerBuilder drmSessionManagerBuilder() {
-      return drmSessionManagerBuilder;
-    }
-
-    /*** Optional dependency*/
-    public AdsMediaSourceBuilder adsMediaSourceBuilder() {
-      return adsMediaSourceBuilder;
-    }
-
-    public static class Builder<T extends Builder<T>> {
-
-      private DataSourceBuilder dataSourceBuilder;
-      private MediaSourceBuilder mediaSourceBuilder;
-      private DrmSessionManagerBuilder drmSessionManagerBuilder;
-      private AdsMediaSourceBuilder adsMediaSourceBuilder;
-
-      public Builder(DataSourceBuilder dataSourceBuilder, MediaSourceBuilder mediaSourceBuilder) {
-        setDataSourceBuilder(dataSourceBuilder);
-        setMediaSourceBuilder(mediaSourceBuilder);
-      }
-
-      public T setDataSourceBuilder(DataSourceBuilder dataSourceBuilder) {
-        this.dataSourceBuilder = dataSourceBuilder;
-        return (T) this;
-      }
-
-      public T setMediaSourceBuilder(MediaSourceBuilder mediaSourceBuilder) {
-        this.mediaSourceBuilder = mediaSourceBuilder;
-        return (T) this;
-      }
-
-      public T setDrmSessionManagerBuilder(DrmSessionManagerBuilder drmSessionManagerBuilder) {
-        this.drmSessionManagerBuilder = drmSessionManagerBuilder;
-        return (T) this;
-      }
-
-      public T setAdsMediaSourceBuilder(AdsMediaSourceBuilder adsMediaSourceBuilder) {
-        this.adsMediaSourceBuilder = adsMediaSourceBuilder;
-        return (T) this;
-      }
-
-      public PlayerDependencies<T> build() {
-        return new PlayerDependencies<>(this);
-      }
-    }
   }
 }

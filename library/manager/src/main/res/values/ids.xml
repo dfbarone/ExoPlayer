@@ -18,5 +18,6 @@
   <item name="player_view" type="id"/>
   <item name="controls_root" type="id"/>
   <item name="debug_text_view" type="id"/>
+  <item name="select_tracks_button" type="id"/>
 
 </resources>
