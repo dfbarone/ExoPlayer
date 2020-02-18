@@ -18,6 +18,7 @@ package com.dfbarone.android.exoplayer2.manager;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.util.Pair;
 import android.view.KeyEvent;
@@ -27,6 +28,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -34,6 +36,7 @@ import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.LoadControl;
+import com.google.android.exoplayer2.RenderersFactory;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
@@ -131,16 +134,15 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   public SimpleExoPlayerManager(Context context, View view) {
     super(context, view);
 
-    /*String sphericalStereoMode = getIntent().getStringExtra(SPHERICAL_STEREO_MODE_EXTRA);
-    if (sphericalStereoMode != null && ContextHelper.isAppCompatActivity(getContext())) {
+    String sphericalStereoMode = getIntent().getStringExtra(SPHERICAL_STEREO_MODE_EXTRA);
+    /*if (sphericalStereoMode != null && ContextHelper.isAppCompatActivity(getContext())) {
       ContextHelper.getAppCompatActivity(getContext()).setTheme(R.style.PlayerTheme_Spherical);
     }*/
 
+    dataSourceFactory = buildDataSourceFactory();
     if (CookieHandler.getDefault() != DEFAULT_COOKIE_MANAGER) {
       CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
     }
-
-    dataSourceFactory = buildDataSourceFactory();
 
     if (getView() != null) {
       // Find views
@@ -164,8 +166,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         playerView.setErrorMessageProvider(getErrorMessageProvider());
       }
       playerView.requestFocus();
-
-      /*if (sphericalStereoMode != null) {
+      if (sphericalStereoMode != null) {
         int stereoMode;
         if (SPHERICAL_STEREO_MODE_MONO.equals(sphericalStereoMode)) {
           stereoMode = C.STEREO_MODE_MONO;
@@ -174,11 +175,12 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         } else if (SPHERICAL_STEREO_MODE_LEFT_RIGHT.equals(sphericalStereoMode)) {
           stereoMode = C.STEREO_MODE_LEFT_RIGHT;
         } else {
-          onError(getContext().getString(R.string.error_unrecognized_stereo_mode), new IllegalArgumentException(getContext().getString(R.string.error_unrecognized_stereo_mode));
+          onError(getContext().getString(R.string.error_unrecognized_stereo_mode), new IllegalArgumentException(getContext().getString(R.string.error_unrecognized_stereo_mode)));
+          //finish();
           return;
         }
         ((SphericalSurfaceView) playerView.getVideoSurfaceView()).setDefaultStereoMode(stereoMode);
-      }*/
+      }
 
     }
 
@@ -201,6 +203,22 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     // See whether the player view wants to handle media or DPAD keys events.
     return (playerView != null && playerView.dispatchKeyEvent(event)) ||
         (getView() != null && getView().dispatchKeyEvent(event));
+  }
+
+  public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+      @NonNull int[] grantResults) {
+    if (grantResults.length == 0) {
+      // Empty results are triggered if a permission is requested while another request was already
+      // pending and can be safely ignored in this case.
+      return;
+    }
+    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+      initializePlayer();
+    } else {
+      onError(getContext().getString(R.string.storage_permission_denied),
+          new IllegalStateException(getContext().getString(R.string.storage_permission_denied)));
+      //finish();
+    }
   }
 
   // OnClickListener methods
@@ -254,8 +272,8 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     Uri[] uris;
     String[] extensions;
     if (ACTION_VIEW.equals(action)) {
-      uris = new Uri[]{intent.getData()};
-      extensions = new String[]{intent.getStringExtra(EXTENSION_EXTRA)};
+      uris = new Uri[] {intent.getData()};
+      extensions = new String[] {intent.getStringExtra(EXTENSION_EXTRA)};
     } else if (ACTION_VIEW_LIST.equals(action)) {
       String[] uriStrings = intent.getStringArrayExtra(URI_LIST_EXTRA);
       uris = new Uri[uriStrings.length];
@@ -270,6 +288,15 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       onError(getContext().getString(R.string.unexpected_intent_action, action),
           new IllegalStateException(
               getContext().getString(R.string.unexpected_intent_action, action)));
+      //finish();
+      return;
+    }
+    if (!Util.checkCleartextTrafficPermitted(uris)) {
+      onError(getContext().getString(R.string.error_cleartext_not_permitted));
+      return;
+    }
+    if (Util.maybeRequestReadExternalStoragePermission(/* activity= */ ContextHelper.getActivity(getContext()), uris)) {
+      // The player will be reinitialized if the permission is granted.
       return;
     }
 
@@ -288,7 +315,9 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
           String drmSchemeExtra =
               intent.hasExtra(DRM_SCHEME_EXTRA) ? DRM_SCHEME_EXTRA : DRM_SCHEME_UUID_EXTRA;
           UUID drmSchemeUuid = Util.getDrmUuid(intent.getStringExtra(drmSchemeExtra));
-          if (drmSchemeUuid != null) {
+          if (drmSchemeUuid == null) {
+            errorStringId = R.string.error_drm_unsupported_scheme;
+          } else {
             drmSessionManager = buildDrmSessionManagerV18(drmSchemeUuid, drmLicenseUrl,
                 keyRequestPropertiesArray, multiSession);
           }
@@ -302,6 +331,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       if (drmSessionManager == null) {
         onError(getContext().getString(errorStringId),
             new IllegalStateException(getContext().getString(errorStringId)));
+        //finish();
         return;
       }
     }
@@ -317,28 +347,21 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       onError(getContext().getString(R.string.error_unrecognized_abr_algorithm),
           new IllegalStateException(
               getContext().getString(R.string.error_unrecognized_abr_algorithm)));
+      //finish();
       return;
     }
 
-    @DefaultRenderersFactory.ExtensionRendererMode int extensionRendererMode =
-        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
-    if (intent.hasExtra(PREFER_EXTENSION_DECODERS_EXTRA)) {
-      boolean preferExtensionDecoders =
-          intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
-      extensionRendererMode =
-          preferExtensionDecoders ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-              : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON;
-    }
-
-    DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(getContext());
-    renderersFactory.setExtensionRendererMode(extensionRendererMode);
+    boolean preferExtensionDecoders =
+        intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
+    RenderersFactory renderersFactory = buildRenderersFactory(preferExtensionDecoders);
 
     trackSelector = new DefaultTrackSelector(trackSelectionFactory);
     trackSelector.setParameters(trackSelectorParameters);
     lastSeenTrackGroupArray = null;
 
-    player = ExoPlayerFactory.newSimpleInstance(getContext(), renderersFactory, trackSelector,
-        getLoadControl(), drmSessionManager);
+    player =
+        ExoPlayerFactory.newSimpleInstance(
+            /* context= */ getContext(), renderersFactory, trackSelector, getLoadControl(), drmSessionManager);
     player.addListener(this);
     player.setPlayWhenReady(startAutoPlay);
     player.addAnalyticsListener(new EventLogger(trackSelector));
@@ -357,8 +380,6 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     }
     mediaSource =
         mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
-
-    // initialize AdsLoader
     String adTagUriString = intent.getStringExtra(AD_TAG_URI_EXTRA);
     if (adTagUriString != null) {
       Uri adTagUri = Uri.parse(adTagUriString);
@@ -370,8 +391,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       if (adsMediaSource != null) {
         mediaSource = adsMediaSource;
       } else {
-        onError(getContext().getString(R.string.ima_not_loaded),
-            new IllegalStateException(getContext().getString(R.string.ima_not_loaded)));
+        onError(getContext().getString(R.string.ima_not_loaded));
       }
     } else {
       releaseAdsLoader();
@@ -426,15 +446,14 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
     super.onTracksChanged(trackGroups, trackSelections);
     if (trackGroups != lastSeenTrackGroupArray) {
-      MappingTrackSelector.MappedTrackInfo mappedTrackInfo =
-          trackSelector.getCurrentMappedTrackInfo();
+      MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
       if (mappedTrackInfo != null) {
         if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_VIDEO)
-            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
+            == MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
           onError(getContext().getString(R.string.error_unsupported_video));
         }
         if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_AUDIO)
-            == MappingTrackSelector.MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
+            == MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
           onError(getContext().getString(R.string.error_unsupported_audio));
         }
       }
@@ -452,6 +471,11 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
   protected String getApplicationName() {
       return SimpleExoPlayerManager.class.getSimpleName();
+  }
+
+  public RenderersFactory buildRenderersFactory(boolean preferExtensionRenderer) {
+    return new DefaultRenderersFactory(getContext())
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF);
   }
 
   /*** Returns a new DataSource factory.*/
@@ -476,8 +500,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   @Override
   @SuppressWarnings("unchecked")
   public MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension) {
-    return PlayerUtils.buildSimpleMediaSource(buildDataSourceFactory(), dataSourceFactory, uri,
-        overrideExtension);
+    return PlayerUtils.buildSimpleMediaSource(dataSourceFactory, uri, overrideExtension);
   }
 
   /*** DRM Dependency methods */

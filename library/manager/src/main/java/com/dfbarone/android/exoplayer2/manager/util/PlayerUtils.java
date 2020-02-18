@@ -9,6 +9,7 @@ import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
@@ -49,6 +50,7 @@ public class PlayerUtils {
     return false;
   }
 
+  @Deprecated
   public static MediaSource buildSimpleMediaSource(DataSource.Factory mediaDataSourceFactory,
                                                    DataSource.Factory dataSourceFactory,
                                                    Uri uri, @Nullable String overrideExtension) {
@@ -70,6 +72,23 @@ public class PlayerUtils {
       default: {
         throw new IllegalStateException("Unsupported type: " + type);
       }
+    }
+  }
+
+  public static MediaSource buildSimpleMediaSource(DataSource.Factory dataSourceFactory,
+      Uri uri, @Nullable String overrideExtension) {
+    @C.ContentType int type = Util.inferContentType(uri, overrideExtension);
+    switch (type) {
+      case C.TYPE_DASH:
+        return new DashMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+      case C.TYPE_SS:
+        return new SsMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+      case C.TYPE_HLS:
+        return new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+      case C.TYPE_OTHER:
+        return new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+      default:
+        throw new IllegalStateException("Unsupported type: " + type);
     }
   }
 

@@ -15,16 +15,13 @@
  */
 package com.google.android.exoplayer2.managerdemo;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.exoplayer2.ExoPlaybackException;
 import com.dfbarone.android.exoplayer2.manager.PlayerManager;
 import com.google.android.exoplayer2.util.Util;
 
@@ -39,6 +36,10 @@ public class PlayerActivity extends AppCompatActivity
   // Activity lifecycle
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    String sphericalStereoMode = getIntent().getStringExtra(DemoPlayerManager.SPHERICAL_STEREO_MODE_EXTRA);
+    if (sphericalStereoMode != null) {
+      setTheme(R.style.PlayerTheme_Spherical);
+    }
     super.onCreate(savedInstanceState);
     setContentView(R.layout.player_activity);
 
@@ -112,8 +113,8 @@ public class PlayerActivity extends AppCompatActivity
 
   @Override
   public void onSaveInstanceState(Bundle outState) {
-    playerManager.onSaveInstanceState(outState);
     super.onSaveInstanceState(outState);
+    playerManager.onSaveInstanceState(outState);
   }
 
   @Override
