@@ -64,8 +64,6 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   protected abstract void releasePlayer();
 
-  //protected abstract void releaseMediaDrm();
-
   protected abstract void releaseAdsLoader();
 
   /*** Getters/Setters */
@@ -95,6 +93,14 @@ public abstract class PlayerManager<D> implements Player.EventListener {
     mData = data;
   }
 
+  public String getString(int resId) {
+    return getContext().getString(resId);
+  }
+
+  public String getString(int resId, Object... formatArgs) {
+    return getContext().getString(resId, formatArgs);
+  }
+
   // Listener for internal need to finish
   public void setEventListener(EventListener listener) {
     eventListener = listener;
@@ -103,22 +109,18 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   // Event listener methods
 
   /*** Notify parent of non-fatal error */
-  protected void showToast(int stringId) {
-    showToast(stringId, getContext().getString(stringId), null);
+  protected void showToast(int resId) {
+    showToast(getString(resId), null);
   }
 
   protected void showToast(String message) {
-    showToast(0, message, null);
-  }
-
-  protected void showToast(int stringId, String message) {
-    showToast(stringId, message, null);
+    showToast(message, null);
   }
 
   /*** Notify parent of potentially fatal error. IllegalStateException is a fatal error in initializePlayer(). */
-  protected void showToast(int messageId, String message, Throwable e) {
+  protected void showToast(String message, Throwable e) {
     if (eventListener != null) {
-      eventListener.onShowToast(messageId, message, null);
+      eventListener.onShowToast(message, null);
     }
   }
 
@@ -135,7 +137,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
      * Notify parent of potentially fatal error. IllegalStateException is a fatal error in
      * initializePlayer().
      */
-    void onShowToast(int messageId, String message, Throwable e);
+    void onShowToast(String message, Throwable e);
 
     void onFinish();
   }

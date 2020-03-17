@@ -17,10 +17,10 @@ package com.google.android.exoplayer2.managerdemo;
 
 import android.content.Intent;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.dfbarone.android.exoplayer2.manager.PlayerManager;
 import com.google.android.exoplayer2.util.Util;
@@ -34,6 +34,7 @@ public class PlayerActivity extends AppCompatActivity
   private DemoPlayerManager playerManager;
 
   // Activity lifecycle
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     String sphericalStereoMode = getIntent().getStringExtra(DemoPlayerManager.SPHERICAL_STEREO_MODE_EXTRA);
@@ -126,9 +127,9 @@ public class PlayerActivity extends AppCompatActivity
 
   // ExoPlayerWrapper.EventListener
   @Override
-  public void onShowToast(int stringId, String message, Throwable e) {
+  public void onShowToast(String message, Throwable e) {
     Log.d(TAG, "onError() " + message);
-    Toast.makeText(this, message, Toast.LENGTH_LONG);
+    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
   }
 
   @Override

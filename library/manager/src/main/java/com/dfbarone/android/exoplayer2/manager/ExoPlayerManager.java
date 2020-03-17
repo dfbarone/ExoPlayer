@@ -146,7 +146,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
       updateButtonVisibility();
       showControls();
     }
-    showToast(0, "onPlayerError", e);
+    showToast(e.getMessage(), e);
   }
 
   @Override

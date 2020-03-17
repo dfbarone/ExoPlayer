@@ -2,20 +2,19 @@ package com.google.android.exoplayer2.managerdemo;
 
 import android.content.Context;
 import android.net.Uri;
-import androidx.annotation.Nullable;
 import android.util.Pair;
 import android.view.View;
 
-import com.dfbarone.android.exoplayer2.manager.Sample;
+import androidx.annotation.Nullable;
+import com.dfbarone.android.exoplayer2.manager.Sample.UriSample;
+import com.dfbarone.android.exoplayer2.manager.SimpleExoPlayerManager;
+import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.RenderersFactory;
-import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
-import com.dfbarone.android.exoplayer2.manager.SimpleExoPlayerManager;
 import com.google.android.exoplayer2.drm.DrmSessionManager;
-import com.google.android.exoplayer2.drm.MediaDrmCallback;
-import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
-import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
+import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer.DecoderInitializationException;
+import com.google.android.exoplayer2.mediacodec.MediaCodecUtil.DecoderQueryException;
 import com.google.android.exoplayer2.offline.DownloadHelper;
 import com.google.android.exoplayer2.offline.DownloadRequest;
 import com.google.android.exoplayer2.source.MediaSource;
@@ -51,7 +50,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
   }
 
   @Override
-  public MediaSource createLeafMediaSource(Sample.UriSample paramters) {
+  public MediaSource createLeafMediaSource(UriSample paramters) {
     DownloadRequest downloadRequest =
         ((DemoApplication) ContextHelper.getApplication(getContext())).getDownloadTracker().getDownloadRequest(paramters.uri);
     if (downloadRequest != null) {
@@ -114,31 +113,32 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
   protected ErrorMessageProvider<ExoPlaybackException> getErrorMessageProvider() {
     return new PlayerErrorMessageProvider();
   }
+
   private class PlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
 
     @Override
     public Pair<Integer, String> getErrorMessage(ExoPlaybackException e) {
-      String errorString = getContext().getString(R.string.error_generic);
+      String errorString = getString(R.string.error_generic);
       if (e.type == ExoPlaybackException.TYPE_RENDERER) {
         Exception cause = e.getRendererException();
-        if (cause instanceof MediaCodecRenderer.DecoderInitializationException) {
+        if (cause instanceof DecoderInitializationException) {
           // Special case for decoder initialization failures.
-          MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
-              (MediaCodecRenderer.DecoderInitializationException) cause;
+          DecoderInitializationException decoderInitializationException =
+              (DecoderInitializationException) cause;
           if (decoderInitializationException.codecInfo == null) {
-            if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
-              errorString = getContext().getString(R.string.error_querying_decoders);
+            if (decoderInitializationException.getCause() instanceof DecoderQueryException) {
+              errorString = getString(R.string.error_querying_decoders);
             } else if (decoderInitializationException.secureDecoderRequired) {
               errorString =
-                  getContext().getString(
+                  getString(
                       R.string.error_no_secure_decoder, decoderInitializationException.mimeType);
             } else {
               errorString =
-                  getContext().getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
+                  getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
             }
           } else {
             errorString =
-                getContext().getString(
+                getString(
                     R.string.error_instantiating_decoder,
                     decoderInitializationException.codecInfo.name);
           }

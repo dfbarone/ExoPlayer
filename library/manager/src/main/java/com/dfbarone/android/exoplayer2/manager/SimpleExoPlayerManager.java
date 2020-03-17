@@ -15,14 +15,11 @@
  */
 package com.dfbarone.android.exoplayer2.manager;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaDrm;
 import android.net.Uri;
-import android.os.Bundle;
-import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -36,7 +33,6 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.RenderersFactory;
@@ -44,11 +40,9 @@ import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.ExoMediaCrypto;
-import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
 import com.google.android.exoplayer2.drm.MediaDrmCallback;
-import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
 import com.dfbarone.android.exoplayer2.manager.util.PlayerUtils;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
@@ -59,14 +53,12 @@ import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
-import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
 import com.google.android.exoplayer2.trackselection.RandomTrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.DebugTextViewHelper;
 import com.google.android.exoplayer2.ui.PlayerView;
-import com.google.android.exoplayer2.ui.TrackSelectionView;
 import com.google.android.exoplayer2.ui.spherical.SphericalGLSurfaceView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -79,7 +71,6 @@ import com.google.android.exoplayer2.util.Util;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.UUID;
 
 /**
  * An class that plays media using {@link SimpleExoPlayer}.
@@ -196,8 +187,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         } else if (SPHERICAL_STEREO_MODE_LEFT_RIGHT.equals(sphericalStereoMode)) {
           stereoMode = C.STEREO_MODE_LEFT_RIGHT;
         } else {
-          showToast(R.string.error_unrecognized_stereo_mode,
-              getContext().getString(R.string.error_unrecognized_stereo_mode));
+          showToast(R.string.error_unrecognized_stereo_mode);
           finish();
           return;
         }
@@ -236,9 +226,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
       initializePlayer();
     } else {
-      showToast(R.string.storage_permission_denied,
-          getContext().getString(R.string.storage_permission_denied),
-          new IllegalStateException(getContext().getString(R.string.storage_permission_denied)));
+      showToast(R.string.storage_permission_denied);
       finish();
     }
   }
@@ -302,10 +290,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     } else if (ABR_ALGORITHM_RANDOM.equals(abrAlgorithm)) {
       trackSelectionFactory = new RandomTrackSelection.Factory();
     } else {
-      showToast(R.string.error_unrecognized_abr_algorithm,
-          getContext().getString(R.string.error_unrecognized_abr_algorithm),
-          new IllegalStateException(
-              getContext().getString(R.string.error_unrecognized_abr_algorithm)));
+      showToast(R.string.error_unrecognized_abr_algorithm);
       finish();
       return;
     }
@@ -314,7 +299,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
         intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
     RenderersFactory renderersFactory = buildRenderersFactory(preferExtensionDecoders);
 
-    trackSelector = new DefaultTrackSelector(trackSelectionFactory);
+    trackSelector = new DefaultTrackSelector(getContext(), trackSelectionFactory);
     trackSelector.setParameters(trackSelectorParameters);
     lastSeenTrackGroupArray = null;
 
@@ -345,8 +330,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     String action = intent.getAction();
     boolean actionIsListView = ACTION_VIEW_LIST.equals(action);
     if (!actionIsListView && !ACTION_VIEW.equals(action)) {
-      showToast(R.string.unexpected_intent_action,
-          getContext().getString(R.string.unexpected_intent_action, action));
+      showToast(getString(R.string.unexpected_intent_action, action));
       finish();
       return null;
     }
@@ -361,7 +345,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     for (Sample.UriSample sample : samples) {
       seenAdsTagUri |= sample.adTagUri != null;
       if (!Util.checkCleartextTrafficPermitted(sample.uri)) {
-        showToast(getContext().getString(R.string.error_cleartext_not_permitted));
+        showToast(R.string.error_cleartext_not_permitted);
         return null;
       }
       if (Util.maybeRequestReadExternalStoragePermission(/* activity= */ ContextHelper.getActivity(getContext()), sample.uri)) {
@@ -464,11 +448,11 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
       if (mappedTrackInfo != null) {
         if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_VIDEO)
             == MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
-          showToast(getContext().getString(R.string.error_unsupported_video));
+          showToast(R.string.error_unsupported_video);
         }
         if (mappedTrackInfo.getTypeSupport(C.TRACK_TYPE_AUDIO)
             == MappedTrackInfo.RENDERER_SUPPORT_UNSUPPORTED_TRACKS) {
-          showToast(getContext().getString(R.string.error_unsupported_audio));
+          showToast(R.string.error_unsupported_audio);
         }
       }
       lastSeenTrackGroupArray = trackGroups;
@@ -528,7 +512,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     }
 
     if (drmSessionManager == null) {
-      showToast(errorStringId, getContext().getString(errorStringId), new IllegalStateException(getContext().getString(errorStringId)));
+      showToast(errorStringId);
       finish();
       return null;
     }
