@@ -47,10 +47,12 @@ import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
 import com.dfbarone.android.exoplayer2.manager.util.PlayerUtils;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.MediaSourceFactory;
 import com.google.android.exoplayer2.source.MergingMediaSource;
 import com.google.android.exoplayer2.source.SingleSampleMediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.ads.AdsLoader;
+import com.google.android.exoplayer2.source.ads.AdsMediaSource;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
@@ -68,6 +70,7 @@ import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
 import com.google.android.exoplayer2.util.Util;
 
+import java.lang.reflect.Constructor;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -544,12 +547,51 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
   /*** Returns an ads media source, reusing the ads loader if one exists.*/
   @Override
-  public @Nullable
-  MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
-    return null;
+  @Nullable
+  public MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
+    // Load the extension source using reflection so the demo app doesn't have to depend on it.
+    // The ads loader is reused for multiple playbacks, so that ad playback can resume.
+    try {
+      Class<?> loaderClass = Class.forName("com.google.android.exoplayer2.ext.ima.ImaAdsLoader");
+      if (adsLoader == null) {
+        // Full class names used so the LINT.IfChange rule triggers should any of the classes move.
+        // LINT.IfChange
+        Constructor<? extends AdsLoader> loaderConstructor =
+            loaderClass
+                .asSubclass(AdsLoader.class)
+                .getConstructor(android.content.Context.class, android.net.Uri.class);
+        // LINT.ThenChange(../../../../../../../../proguard-rules.txt)
+        adsLoader = loaderConstructor.newInstance(this, adTagUri);
+      }
+      MediaSourceFactory adMediaSourceFactory =
+          new MediaSourceFactory() {
+            @Override
+            public MediaSource createMediaSource(Uri uri) {
+              return SimpleExoPlayerManager.this.createLeafMediaSource(
+                  uri, /* extension=*/ null, DrmSessionManager.getDummyDrmSessionManager());
+            }
+
+            @Override
+            public int[] getSupportedTypes() {
+              return new int[] {C.TYPE_DASH, C.TYPE_SS, C.TYPE_HLS, C.TYPE_OTHER};
+            }
+          };
+      return new AdsMediaSource(mediaSource, adMediaSourceFactory, adsLoader, playerView);
+    } catch (ClassNotFoundException e) {
+      // IMA extension not loaded.
+      return null;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void releaseAdsLoader() {
+    if (adsLoader != null) {
+      adsLoader.release();
+      adsLoader = null;
+      loadedAdTagUri = null;
+      playerView.getOverlayFrameLayout().removeAllViews();
+    }
   }
 }

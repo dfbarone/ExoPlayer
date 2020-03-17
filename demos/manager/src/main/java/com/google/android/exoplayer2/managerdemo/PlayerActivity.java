@@ -93,92 +93,8 @@ public class PlayerActivity extends AppCompatActivity
       }
 
       @Override
-      @Nullable
-      public MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
-        // Load the extension source using reflection so the demo app doesn't have to depend on it.
-        // The ads loader is reused for multiple playbacks, so that ad playback can resume.
-        try {
-          Class<?> loaderClass = Class.forName("com.google.android.exoplayer2.ext.ima.ImaAdsLoader");
-          if (adsLoader == null) {
-            // Full class names used so the LINT.IfChange rule triggers should any of the classes move.
-            // LINT.IfChange
-            Constructor<? extends AdsLoader> loaderConstructor =
-                loaderClass
-                    .asSubclass(AdsLoader.class)
-                    .getConstructor(android.content.Context.class, android.net.Uri.class);
-            // LINT.ThenChange(../../../../../../../../proguard-rules.txt)
-            adsLoader = loaderConstructor.newInstance(this, adTagUri);
-          }
-          final SimpleExoPlayerManager exoPlayerManager = this;
-          MediaSourceFactory adMediaSourceFactory =
-              new MediaSourceFactory() {
-                @Override
-                public MediaSource createMediaSource(Uri uri) {
-                  return exoPlayerManager.createLeafMediaSource(
-                      uri, /* extension=*/ null, DrmSessionManager.getDummyDrmSessionManager());
-                }
-
-                @Override
-                public int[] getSupportedTypes() {
-                  return new int[] {C.TYPE_DASH, C.TYPE_SS, C.TYPE_HLS, C.TYPE_OTHER};
-                }
-              };
-          return new AdsMediaSource(mediaSource, adMediaSourceFactory, adsLoader, playerView);
-        } catch (ClassNotFoundException e) {
-          // IMA extension not loaded.
-          return null;
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-
-      @Override
-      public void releaseAdsLoader() {
-        if (adsLoader != null) {
-          adsLoader.release();
-          adsLoader = null;
-          loadedAdTagUri = null;
-          playerView.getOverlayFrameLayout().removeAllViews();
-        }
-      }
-
-      @Override
       protected ErrorMessageProvider<ExoPlaybackException> getErrorMessageProvider() {
         return new PlayerErrorMessageProvider();
-      }
-
-      class PlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
-
-        @Override
-        public Pair<Integer, String> getErrorMessage(ExoPlaybackException e) {
-          String errorString = getString(R.string.error_generic);
-          if (e.type == ExoPlaybackException.TYPE_RENDERER) {
-            Exception cause = e.getRendererException();
-            if (cause instanceof MediaCodecRenderer.DecoderInitializationException) {
-              // Special case for decoder initialization failures.
-              MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
-                  (MediaCodecRenderer.DecoderInitializationException) cause;
-              if (decoderInitializationException.codecInfo == null) {
-                if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
-                  errorString = getString(R.string.error_querying_decoders);
-                } else if (decoderInitializationException.secureDecoderRequired) {
-                  errorString =
-                      getString(
-                          R.string.error_no_secure_decoder, decoderInitializationException.mimeType);
-                } else {
-                  errorString =
-                      getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
-                }
-              } else {
-                errorString =
-                    getString(
-                        R.string.error_instantiating_decoder,
-                        decoderInitializationException.codecInfo.name);
-              }
-            }
-          }
-          return Pair.create(0, errorString);
-        }
       }
     };
 
@@ -275,4 +191,36 @@ public class PlayerActivity extends AppCompatActivity
     finish();
   }
 
+  private class PlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
+    @Override
+    public Pair<Integer, String> getErrorMessage(ExoPlaybackException e) {
+      String errorString = getString(R.string.error_generic);
+      if (e.type == ExoPlaybackException.TYPE_RENDERER) {
+        Exception cause = e.getRendererException();
+        if (cause instanceof MediaCodecRenderer.DecoderInitializationException) {
+          // Special case for decoder initialization failures.
+          MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
+              (MediaCodecRenderer.DecoderInitializationException) cause;
+          if (decoderInitializationException.codecInfo == null) {
+            if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
+              errorString = getString(R.string.error_querying_decoders);
+            } else if (decoderInitializationException.secureDecoderRequired) {
+              errorString =
+                  getString(
+                      R.string.error_no_secure_decoder, decoderInitializationException.mimeType);
+            } else {
+              errorString =
+                  getString(R.string.error_no_decoder, decoderInitializationException.mimeType);
+            }
+          } else {
+            errorString =
+                getString(
+                    R.string.error_instantiating_decoder,
+                    decoderInitializationException.codecInfo.name);
+          }
+        }
+      }
+      return Pair.create(0, errorString);
+    }
+  }
 }
