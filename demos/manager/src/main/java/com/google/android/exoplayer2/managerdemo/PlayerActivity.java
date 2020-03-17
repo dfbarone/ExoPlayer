@@ -53,6 +53,7 @@ public class PlayerActivity extends AppCompatActivity
   @Override
   public void onNewIntent(Intent intent) {
     playerManager.onNewIntent(intent);
+    super.onNewIntent(intent);
   }
 
   @Override
@@ -125,14 +126,9 @@ public class PlayerActivity extends AppCompatActivity
 
   // ExoPlayerWrapper.EventListener
   @Override
-  public void onError(String message, Exception e) {
+  public void onShowToast(int stringId, String message, Throwable e) {
     Log.d(TAG, "onError() " + message);
     Toast.makeText(this, message, Toast.LENGTH_LONG);
-
-    // Initialization error. finish.
-    if (e instanceof IllegalStateException) {
-      finish();
-    }
   }
 
   @Override

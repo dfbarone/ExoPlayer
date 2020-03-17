@@ -6,6 +6,8 @@ import android.view.View;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.drm.DrmSessionManager;
+import com.google.android.exoplayer2.drm.ExoMediaCrypto;
 import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
@@ -87,6 +89,31 @@ public class PlayerUtils {
         return new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
       case C.TYPE_OTHER:
         return new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+      default:
+        throw new IllegalStateException("Unsupported type: " + type);
+    }
+  }
+
+  public static MediaSource createLeafMediaSource(Uri uri, String extension,
+      DataSource.Factory dataSourceFactory, DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
+    @C.ContentType int type = Util.inferContentType(uri, extension);
+    switch (type) {
+      case C.TYPE_DASH:
+        return new DashMediaSource.Factory(dataSourceFactory)
+            .setDrmSessionManager(drmSessionManager)
+            .createMediaSource(uri);
+      case C.TYPE_SS:
+        return new SsMediaSource.Factory(dataSourceFactory)
+            .setDrmSessionManager(drmSessionManager)
+            .createMediaSource(uri);
+      case C.TYPE_HLS:
+        return new HlsMediaSource.Factory(dataSourceFactory)
+            .setDrmSessionManager(drmSessionManager)
+            .createMediaSource(uri);
+      case C.TYPE_OTHER:
+        return new ProgressiveMediaSource.Factory(dataSourceFactory)
+            .setDrmSessionManager(drmSessionManager)
+            .createMediaSource(uri);
       default:
         throw new IllegalStateException("Unsupported type: " + type);
     }

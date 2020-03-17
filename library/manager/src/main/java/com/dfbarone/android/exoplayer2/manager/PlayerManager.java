@@ -9,7 +9,11 @@ import android.view.View;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
+import com.google.android.exoplayer2.drm.DrmSessionManager;
+import com.google.android.exoplayer2.drm.ExoMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
+import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
+import com.google.android.exoplayer2.drm.MediaDrmCallback;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.ui.PlayerView;
@@ -60,7 +64,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   protected abstract void releasePlayer();
 
-  protected abstract void releaseMediaDrm();
+  //protected abstract void releaseMediaDrm();
 
   protected abstract void releaseAdsLoader();
 
@@ -99,14 +103,22 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   // Event listener methods
 
   /*** Notify parent of non-fatal error */
-  protected void onError(String message) {
-    onError(message, null);
+  protected void showToast(int stringId) {
+    showToast(stringId, getContext().getString(stringId), null);
+  }
+
+  protected void showToast(String message) {
+    showToast(0, message, null);
+  }
+
+  protected void showToast(int stringId, String message) {
+    showToast(stringId, message, null);
   }
 
   /*** Notify parent of potentially fatal error. IllegalStateException is a fatal error in initializePlayer(). */
-  protected void onError(String message, Exception e) {
+  protected void showToast(int messageId, String message, Throwable e) {
     if (eventListener != null) {
-      eventListener.onError(message, e);
+      eventListener.onShowToast(messageId, message, null);
     }
   }
 
@@ -123,7 +135,7 @@ public abstract class PlayerManager<D> implements Player.EventListener {
      * Notify parent of potentially fatal error. IllegalStateException is a fatal error in
      * initializePlayer().
      */
-    void onError(String message, Exception e);
+    void onShowToast(int messageId, String message, Throwable e);
 
     void onFinish();
   }
@@ -131,9 +143,9 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   /*** MediaSource builder methods */
   public interface MediaSourceBuilder {
 
-    MediaSource buildMediaSource(Uri uri);
+    MediaSource createLeafMediaSource(Sample.UriSample parameters);
 
-    MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension);
+    MediaSource createLeafMediaSource(Uri uri, String extension, DrmSessionManager<ExoMediaCrypto> drmSessionManager);
   }
 
   /*** DataSource.Factory builder methods */
@@ -147,13 +159,8 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   }
 
   /*** Drm builder methods */
-  public interface DrmSessionManagerBuilder {
-
-    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
-        UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
-        throws UnsupportedDrmException;
-
-    void releaseMediaDrm();
+  public interface MedaiDrmCallbackBuilder {
+    MediaDrmCallback createMediaDrmCallback(String licenseUrl, String[] keyRequestPropertyArray);
   }
 
   /*** Ads builder methods */

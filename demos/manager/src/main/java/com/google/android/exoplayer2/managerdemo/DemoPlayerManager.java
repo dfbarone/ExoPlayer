@@ -6,16 +6,20 @@ import androidx.annotation.Nullable;
 import android.util.Pair;
 import android.view.View;
 
+import com.dfbarone.android.exoplayer2.manager.Sample;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.RenderersFactory;
 import com.dfbarone.android.exoplayer2.manager.util.ContextHelper;
 import com.dfbarone.android.exoplayer2.manager.SimpleExoPlayerManager;
+import com.google.android.exoplayer2.drm.DrmSessionManager;
+import com.google.android.exoplayer2.drm.MediaDrmCallback;
 import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.offline.DownloadHelper;
 import com.google.android.exoplayer2.offline.DownloadRequest;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.MediaSourceFactory;
 import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.source.ads.AdsMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
@@ -47,18 +51,19 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
   }
 
   @Override
-  public MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension) {
+  public MediaSource createLeafMediaSource(Sample.UriSample paramters) {
     DownloadRequest downloadRequest =
-        ((DemoApplication) ContextHelper.getApplication(getContext())).getDownloadTracker().getDownloadRequest(uri);
+        ((DemoApplication) ContextHelper.getApplication(getContext())).getDownloadTracker().getDownloadRequest(paramters.uri);
     if (downloadRequest != null) {
       return DownloadHelper.createMediaSource(downloadRequest, dataSourceFactory);
     }
-    return super.buildMediaSource(uri, overrideExtension);
+    return super.createLeafMediaSource(paramters);
   }
 
   /** Returns an ads media source, reusing the ads loader if one exists. */
   @Override
-  public @Nullable MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
+  @Nullable
+  public MediaSource createAdsMediaSource(MediaSource mediaSource, Uri adTagUri) {
     // Load the extension source using reflection so the demo app doesn't have to depend on it.
     // The ads loader is reused for multiple playbacks, so that ad playback can resume.
     try {
@@ -71,14 +76,14 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
                 .asSubclass(AdsLoader.class)
                 .getConstructor(android.content.Context.class, android.net.Uri.class);
         // LINT.ThenChange(../../../../../../../../proguard-rules.txt)
-        adsLoader = loaderConstructor.newInstance(getContext(), adTagUri);
+        adsLoader = loaderConstructor.newInstance(this, adTagUri);
       }
-      adsLoader.setPlayer(player);
-      AdsMediaSource.MediaSourceFactory adMediaSourceFactory =
-          new AdsMediaSource.MediaSourceFactory() {
+      MediaSourceFactory adMediaSourceFactory =
+          new MediaSourceFactory() {
             @Override
             public MediaSource createMediaSource(Uri uri) {
-              return buildMediaSource(uri);
+              return DemoPlayerManager.this.createLeafMediaSource(
+                  uri, /* extension=*/ null, DrmSessionManager.getDummyDrmSessionManager());
             }
 
             @Override
@@ -109,7 +114,6 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
   protected ErrorMessageProvider<ExoPlaybackException> getErrorMessageProvider() {
     return new PlayerErrorMessageProvider();
   }
-
   private class PlayerErrorMessageProvider implements ErrorMessageProvider<ExoPlaybackException> {
 
     @Override
@@ -121,7 +125,7 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
           // Special case for decoder initialization failures.
           MediaCodecRenderer.DecoderInitializationException decoderInitializationException =
               (MediaCodecRenderer.DecoderInitializationException) cause;
-          if (decoderInitializationException.decoderName == null) {
+          if (decoderInitializationException.codecInfo == null) {
             if (decoderInitializationException.getCause() instanceof MediaCodecUtil.DecoderQueryException) {
               errorString = getContext().getString(R.string.error_querying_decoders);
             } else if (decoderInitializationException.secureDecoderRequired) {
@@ -136,12 +140,11 @@ public class DemoPlayerManager extends SimpleExoPlayerManager {
             errorString =
                 getContext().getString(
                     R.string.error_instantiating_decoder,
-                    decoderInitializationException.decoderName);
+                    decoderInitializationException.codecInfo.name);
           }
         }
       }
       return Pair.create(0, errorString);
     }
   }
-
 }

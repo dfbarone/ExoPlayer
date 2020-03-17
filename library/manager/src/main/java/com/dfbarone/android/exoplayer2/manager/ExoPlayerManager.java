@@ -16,6 +16,7 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.PlayerControlView;
+import com.google.android.exoplayer2.util.Util;
 
 /**
  * This class attempts to abstract basic state and non ui functionality.
@@ -23,7 +24,12 @@ import com.google.android.exoplayer2.ui.PlayerControlView;
 public abstract class ExoPlayerManager<D> extends PlayerManager<D>
     implements PlaybackPreparer, PlayerControlView.VisibilityListener {
 
+  // Media item configuration extras.
+
+  public static final String TUNNELING_EXTRA = "tunneling";
+
   // Saved instance state keys.
+
   public static final String KEY_TRACK_SELECTOR_PARAMETERS = "track_selector_parameters";
   public static final String KEY_WINDOW = "window";
   public static final String KEY_POSITION = "position";
@@ -74,15 +80,14 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
 
   public void onRestoreInstanceState(Bundle savedInstanceState) {
     // Restore instance state
-    if (savedInstanceState != null) {
-      trackSelectorParameters = savedInstanceState.getParcelable(KEY_TRACK_SELECTOR_PARAMETERS);
-      startAutoPlay = savedInstanceState.getBoolean(KEY_AUTO_PLAY);
-      startWindow = savedInstanceState.getInt(KEY_WINDOW);
-      startPosition = savedInstanceState.getLong(KEY_POSITION);
-    } else {
-      trackSelectorParameters = new DefaultTrackSelector.ParametersBuilder().build();
-      clearStartPosition();
+    DefaultTrackSelector.ParametersBuilder builder =
+        new DefaultTrackSelector.ParametersBuilder(/* context= */ getContext());
+    boolean tunneling = getIntent().getBooleanExtra(TUNNELING_EXTRA, false);
+    if (Util.SDK_INT >= 21 && tunneling) {
+      builder.setTunnelingAudioSessionId(C.generateAudioSessionIdV21(/* context= */ getContext()));
     }
+    trackSelectorParameters = builder.build();
+    clearStartPosition();
   }
 
   // State methods
@@ -125,7 +130,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
 
   // Player.DefaultEventListener
   @Override
-  public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+  public void onPlayerStateChanged(boolean playWhenReady, @Player.State int playbackState) {
     if (playbackState == Player.STATE_ENDED) {
       showControls();
     }
@@ -141,7 +146,7 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
       updateButtonVisibility();
       showControls();
     }
-    onError("onPlayerError", e);
+    showToast(0, "onPlayerError", e);
   }
 
   @Override
