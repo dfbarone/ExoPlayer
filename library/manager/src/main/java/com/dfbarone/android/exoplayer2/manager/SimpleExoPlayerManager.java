@@ -79,7 +79,7 @@ import java.net.CookiePolicy;
  * An class that plays media using {@link SimpleExoPlayer}.
  */
 public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
-    implements PlayerManager.DataSourceBuilder, PlayerManager.MediaSourceBuilder,
+    implements PlayerManager.DataSourceBuilder, PlayerManager.LeafMediaSourceBuilder,
     PlayerManager.MedaiDrmCallbackBuilder, PlayerManager.AdsMediaSourceBuilder, OnClickListener {
 
 // Activity extras.
@@ -137,6 +137,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   protected DataSource.Factory dataSourceFactory;
   protected SimpleExoPlayer player;
   protected MediaSource mediaSource;
+  protected FrameworkMediaDrm mediaDrm;
   protected DebugTextViewHelper debugViewHelper;
 
   // Fields used only for ad playback. The ads loader is loaded via reflection.
@@ -416,6 +417,15 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     }
     if (adsLoader != null) {
       adsLoader.setPlayer(null);
+    }
+    releaseMediaDrm();
+  }
+
+  @Override
+  public void releaseMediaDrm() {
+    if (mediaDrm != null) {
+      mediaDrm.release();
+      mediaDrm = null;
     }
   }
 

@@ -64,6 +64,8 @@ public abstract class PlayerManager<D> implements Player.EventListener {
 
   protected abstract void releasePlayer();
 
+  protected abstract void releaseMediaDrm();
+
   protected abstract void releaseAdsLoader();
 
   /*** Getters/Setters */
@@ -145,6 +147,13 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   /*** MediaSource builder methods */
   public interface MediaSourceBuilder {
 
+    MediaSource buildMediaSource(Uri uri);
+
+    MediaSource buildMediaSource(Uri uri, @Nullable String overrideExtension);
+  }
+
+  public interface LeafMediaSourceBuilder {
+
     MediaSource createLeafMediaSource(Sample.UriSample parameters);
 
     MediaSource createLeafMediaSource(Uri uri, String extension, DrmSessionManager<ExoMediaCrypto> drmSessionManager);
@@ -161,8 +170,20 @@ public abstract class PlayerManager<D> implements Player.EventListener {
   }
 
   /*** Drm builder methods */
+  public interface DrmSessionManagerBuilder {
+
+    DefaultDrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(
+        UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession)
+        throws UnsupportedDrmException;
+
+    void releaseMediaDrm();
+  }
+
   public interface MedaiDrmCallbackBuilder {
+
     MediaDrmCallback createMediaDrmCallback(String licenseUrl, String[] keyRequestPropertyArray);
+
+    default void releaseMediaDrm() { }
   }
 
   /*** Ads builder methods */
