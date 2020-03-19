@@ -101,6 +101,7 @@ public class PlayerActivity extends AppCompatActivity
     playerManager.onRestoreInstanceState(savedInstanceState);
     playerManager.setEventListener(this);
     playerManager.setIntent(getIntent());
+    //playerManager.setData(Sample.createFromIntent(getIntent()));
     playerManager.setDebug(BuildConfig.DEBUG);
   }
 

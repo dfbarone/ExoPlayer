@@ -334,12 +334,16 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
     String action = intent.getAction();
     boolean actionIsListView = ACTION_VIEW_LIST.equals(action);
     if (!actionIsListView && !ACTION_VIEW.equals(action)) {
-      showToast(getString(R.string.unexpected_intent_action, action));
-      finish();
-      return null;
+      if (!(getData() instanceof Sample)) {
+        showToast(getString(R.string.unexpected_intent_action, action));
+        finish();
+        return null;
+      } else {
+        actionIsListView = getData() instanceof Sample.PlaylistSample;
+      }
     }
 
-    Sample intentAsSample = Sample.createFromIntent(intent);
+    Sample intentAsSample = (getData() instanceof Sample) ? (Sample)getData() : Sample.createFromIntent(intent);
     Sample.UriSample[] samples =
         intentAsSample instanceof Sample.PlaylistSample
             ? ((Sample.PlaylistSample) intentAsSample).children
