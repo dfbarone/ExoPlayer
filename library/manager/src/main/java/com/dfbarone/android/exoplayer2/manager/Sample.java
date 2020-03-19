@@ -39,7 +39,7 @@ import java.util.UUID;
 
 public abstract class Sample {
 
-  public static final class UriSample extends Sample {
+  public static class UriSample extends Sample {
 
     public static UriSample createFromIntent(Uri uri, Intent intent, String extrasKeySuffix) {
       String extension = intent.getStringExtra(EXTENSION_EXTRA + extrasKeySuffix);
@@ -64,7 +64,7 @@ public abstract class Sample {
     public final DrmInfo drmInfo;
     public final Uri adTagUri;
     @Nullable public final String sphericalStereoMode;
-    @Nullable SubtitleInfo subtitleInfo;
+    @Nullable public final SubtitleInfo subtitleInfo;
 
     public UriSample(
         String name,
@@ -113,7 +113,7 @@ public abstract class Sample {
     }
   }
 
-  public static final class PlaylistSample extends Sample {
+  public static class PlaylistSample extends Sample {
 
     public final UriSample[] children;
 
@@ -131,7 +131,7 @@ public abstract class Sample {
     }
   }
 
-  public static final class DrmInfo {
+  public static class DrmInfo {
 
     public static DrmInfo createFromIntent(Intent intent, String extrasKeySuffix) {
       String schemeKey = DRM_SCHEME_EXTRA + extrasKeySuffix;
@@ -177,7 +177,7 @@ public abstract class Sample {
     }
   }
 
-  public static final class SubtitleInfo {
+  public static class SubtitleInfo {
 
     @Nullable
     public static SubtitleInfo createFromIntent(Intent intent, String extrasKeySuffix) {
