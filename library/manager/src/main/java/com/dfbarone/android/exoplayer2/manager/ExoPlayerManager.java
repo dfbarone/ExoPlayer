@@ -69,6 +69,13 @@ public abstract class ExoPlayerManager<D> extends PlayerManager<D>
     setIntent(intent);
   }
 
+  public void onNewData(D data) {
+    releasePlayer();
+    releaseAdsLoader();
+    clearStartPosition();
+    setData(data);
+  }
+
   public void onSaveInstanceState(Bundle outState) {
     updateTrackSelectorParameters();
     updateStartPosition();
