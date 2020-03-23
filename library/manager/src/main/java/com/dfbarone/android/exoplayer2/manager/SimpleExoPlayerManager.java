@@ -23,10 +23,12 @@ import android.net.Uri;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
@@ -128,7 +130,7 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
   // ui
   protected PlayerView playerView;
-  protected LinearLayout debugRootView;
+  protected ViewGroup debugRootView;
   protected Button selectTracksButton;
   protected TextView debugTextView;
   protected boolean isShowingTrackSelectionDialog;
@@ -162,14 +164,14 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
 
     if (getView() != null) {
       // Find views
-      playerView = getView().findViewById(R.id.player_view);
+      playerView = getView().findViewById(getPlayerViewId());
       if (playerView == null) {
         throw new IllegalStateException(
             "Your view must contain a PlayerView with an id of R.id.player_view");
       }
-      debugRootView = getView().findViewById(R.id.controls_root);
-      debugTextView = getView().findViewById(R.id.debug_text_view);
-      selectTracksButton = getView().findViewById(R.id.select_tracks_button);
+      debugRootView = getView().findViewById(getControlsRootId());
+      debugTextView = getView().findViewById(getDebugTextViewId());
+      selectTracksButton = getView().findViewById(getSelectTracksButtonId());
       if (selectTracksButton != null) {
         selectTracksButton.setOnClickListener(this);
       }
@@ -211,6 +213,22 @@ public class SimpleExoPlayerManager<D> extends ExoPlayerManager<D>
   @Override
   public PlayerView getPlayerView() {
     return playerView;
+  }
+
+  protected @IdRes int getPlayerViewId() {
+    return R.id.player_view;
+  }
+
+  protected @IdRes int getControlsRootId() {
+    return R.id.controls_root;
+  }
+
+  protected @IdRes int getDebugTextViewId() {
+    return R.id.debug_text_view;
+  }
+
+  protected @IdRes int getSelectTracksButtonId() {
+    return R.id.select_tracks_button;
   }
 
   // Activity lifecycle
